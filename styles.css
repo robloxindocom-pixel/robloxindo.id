@@ -34,41 +34,55 @@ body {
 }
 
 #text-effect {
-  /* Responsif */
+  /* Ukuran responsif */
   font-size: 8vw;
-  max-font-size: 72px;
   color: transparent;
   background: linear-gradient(45deg, #ffcc00, #ff6600, #ffcc00);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  text-shadow: 0 0 15px rgba(255, 204, 0, 0.5);
   font-weight: bold;
   letter-spacing: 2px;
   opacity: 0;
   pointer-events: auto;
   transition: opacity 1s ease;
   white-space: nowrap;
-  cursor: pointer; /* Tanda bahwa teks bisa diklik */
-  position: relative; /* Diperlukan untuk animasi */
+  cursor: pointer;
+  position: relative;
   display: inline-block;
 }
 
-/* Animasi glow: cahaya berdenyut kuning-oranye */
-@keyframes glowPulse {
+/* Animasi: teks membesar-mengecil seperti napas (maju-mundur) */
+@keyframes breathe {
   0%, 100% {
-    text-shadow: 0 0 15px rgba(255, 204, 0, 0.7), 0 0 25px rgba(255, 204, 0, 0.5);
+    transform: scale(1);
   }
   50% {
-    text-shadow: 0 0 20px rgba(255, 102, 0, 0.8), 0 0 35px rgba(255, 102, 0, 0.6), 0 0 10px rgba(255, 204, 0, 0.4);
+    transform: scale(1.08);
   }
 }
 
-#text-effect {
-  animation: glowPulse 2s ease-in-out infinite;
+/* Animasi: cahaya kuning-oranye berdenyut */
+@keyframes glowPulse {
+  0%, 100% {
+    text-shadow: 0 0 15px rgba(255, 204, 0, 0.7),
+                 0 0 25px rgba(255, 204, 0, 0.5);
+  }
+  50% {
+    text-shadow: 0 0 20px rgba(255, 102, 0, 0.8),
+                 0 0 35px rgba(255, 102, 0, 0.6),
+                 0 0 10px rgba(255, 204, 0, 0.4);
+  }
 }
 
-/* HP Kecil */
+/* Gabungkan dua animasi: glow + breathe */
+#text-effect {
+  animation: 
+    glowPulse 2s ease-in-out infinite,
+    breathe 4s ease-in-out infinite;
+}
+
+/* Responsif: HP kecil */
 @media (max-width: 480px) {
   #text-effect {
     font-size: 6vw;
