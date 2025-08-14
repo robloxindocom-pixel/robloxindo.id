@@ -5,45 +5,64 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Robloxindo Marketplace</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Particles.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
   <style>
     body {
-      background: linear-gradient(135deg, #1a1a2e, #16213e);
-      color: #ffcc00;
-      text-align: center;
-      padding: 50px;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       margin: 0;
+      padding: 0;
+      background: #000;
+      color: #FFA500;
+      text-align: center;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
+      position: relative;
     }
+
+    /* Particles container */
+    #particles-js {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+    }
+
     h1 {
       font-size: 2.8rem;
-      text-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
+      text-shadow: 0 0 10px rgba(255, 165, 0, 0.6);
       margin-bottom: 20px;
+      z-index: 1;
+      color: #FFA500;
     }
     p {
       font-size: 1.2rem;
       opacity: 0.9;
+      z-index: 1;
     }
 
     .btn {
       margin-top: 20px;
       padding: 12px 28px;
       font-size: 1.1rem;
-      background: #f8c700;
+      background: #FFA500;
       color: #000;
       border: none;
       border-radius: 50px;
       cursor: pointer;
-      box-shadow: 0 4px 15px rgba(248, 199, 0, 0.4);
+      box-shadow: 0 4px 15px rgba(255, 165, 0, 0.4);
       transition: all 0.3s ease;
       font-weight: bold;
+      z-index: 1;
     }
     .btn:hover {
-      background: #e0b500;
+      background: #FF8C00;
       transform: translateY(-2px);
     }
     .btn:disabled {
@@ -60,23 +79,24 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(0, 0, 0, 0.9);
       justify-content: center;
       align-items: center;
       z-index: 1000;
     }
     .modal-content {
-      background: #1e1e2f;
+      background: #111;
       padding: 30px;
       border-radius: 15px;
       width: 90%;
       max-width: 400px;
-      color: #fff;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      color: #FFA500;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+      z-index: 1001;
     }
     .modal h2 {
       margin-top: 0;
-      color: #f8c700;
+      color: #FFA500;
     }
     .form-group {
       margin: 15px 0;
@@ -92,8 +112,8 @@
       padding: 10px;
       border: 1px solid #444;
       border-radius: 8px;
-      background: #2a2a3a;
-      color: #fff;
+      background: #222;
+      color: #FFA500;
       box-sizing: border-box;
     }
     .form-actions {
@@ -108,9 +128,13 @@
   </style>
 </head>
 <body>
+
+  <!-- Particles Background -->
+  <div id="particles-js"></div>
+
+  <!-- Content -->
   <h1>WELCOME TO ROBLOXINDO COMMUNITY!</h1>
   <p>Website sedang dalam pengembangan oleh Cekdeal.team</p>
-
   <button id="registerBtn" class="btn">Pre-Register Sekarang</button>
 
   <!-- Modal -->
@@ -138,129 +162,155 @@
   </div>
 
   <script>
-  // === 1. Inisialisasi Supabase DI AWAL, sebelum digunakan ===
-  const supabaseUrl = 'https://kbhkwpngplzjglewekpx.supabase.co';
-  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtiaGt3cG5ncGx6amdsZXdla3B4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxNjI1MjYsImV4cCI6MjA3MDczODUyNn0.V3cAXAr4lv9rD652XrzqAAszrZezN4ZxvSqnjB3iwtQ';
-  
-  // ❌ Salah: supabase.supabase.createClient
-  // ✅ Benar: supabase.createClient
-  const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+    // Konfigurasi particles.js
+    document.addEventListener("DOMContentLoaded", function () {
+      particlesJS("particles-js", {
+        particles: {
+          number: { value: 80, density: { enable: true, area: 800 } },
+          color: { value: "#FFA500" },
+          shape: { type: "circle" },
+          opacity: { value: 0.7, random: true },
+          size: { value: 3, random: true },
+          move: {
+            enable: true,
+            speed: 2,
+            direction: "none",
+            random: true,
+            straight: false,
+            out_mode: "out"
+          }
+        },
+        interactivity: {
+          detect_on: "canvas",
+          events: {
+            onhover: { enable: true, mode: "repulse" },
+            onclick: { enable: true, mode: "push" }
+          },
+          modes: {
+            repulse: { distance: 100, duration: 0.4 },
+            push: { particles_nb: 4 }
+          }
+        },
+        retina_detect: true
+      });
+    });
 
-  const registerBtn = document.getElementById('registerBtn');
-  const modal = document.getElementById('modal');
+    // === 1. Inisialisasi Supabase ===
+    const supabaseUrl = 'https://kbhkwpngplzjglewekpx.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtiaGt3cG5ncGx6amdsZXdla3B4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxNjI1MjYsImV4cCI6MjA3MDczODUyNn0.V3cAXAr4lv9rD652XrzqAAszrZezN4ZxvSqnjB3iwtQ';
+    const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
-  // === 2. Pastikan semua fungsi menggunakan `supabaseClient` ===
-  window.addEventListener('load', async () => {
-    // Sekarang aman, karena supabaseClient sudah dibuat
-    const { data: { session } } = await supabaseClient.auth.getSession();
+    const registerBtn = document.getElementById('registerBtn');
+    const modal = document.getElementById('modal');
 
-    if (session) {
-      const registered = await checkIfRegistered(session.user.id);
-      if (registered) {
-        showWelcomeMessage(session.user.user_metadata?.full_name || session.user.email.split('@')[0]);
-      } else {
-        registerBtn.textContent = "Lanjutkan Pre-Register";
-      }
-    }
+    // === 2. Auth & Logic ===
+    window.addEventListener('load', async () => {
+      const { data: { session } } = await supabaseClient.auth.getSession();
 
-    // Dengarkan perubahan auth
-    supabaseClient.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN') {
+      if (session) {
         const registered = await checkIfRegistered(session.user.id);
         if (registered) {
           showWelcomeMessage(session.user.user_metadata?.full_name || session.user.email.split('@')[0]);
         } else {
+          registerBtn.textContent = "Lanjutkan Pre-Register";
+        }
+      }
+
+      supabaseClient.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN') {
+          const registered = await checkIfRegistered(session.user.id);
+          if (registered) {
+            showWelcomeMessage(session.user.user_metadata?.full_name || session.user.email.split('@')[0]);
+          } else {
+            openModal(session.user.email);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          registerBtn.textContent = "Pre-Register Sekarang";
+          registerBtn.onclick = signInWithGoogle;
+        }
+      });
+    });
+
+    async function signInWithGoogle() {
+      const { error } = await supabaseClient.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.href
+        }
+      });
+      if (error) alert('Gagal login dengan Google: ' + error.message);
+    }
+
+    async function checkIfRegistered(userId) {
+      const { data, error } = await supabaseClient
+        .from('pre_registrations')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+      return !!data;
+    }
+
+    function openModal(email) {
+      document.getElementById('email').value = email;
+      modal.style.display = 'flex';
+    }
+
+    function closeModal() {
+      modal.style.display = 'none';
+    }
+
+    async function submitRegistration() {
+      const name = document.getElementById('name').value.trim();
+      const whatsapp = document.getElementById('whatsapp').value.trim();
+      const email = document.getElementById('email').value;
+
+      if (!name || !whatsapp || !email) {
+        alert("Semua field harus diisi!");
+        return;
+      }
+
+      const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+      if (authError || !user) {
+        alert("Anda belum login.");
+        return;
+      }
+
+      const { error } = await supabaseClient
+        .from('pre_registrations')
+        .insert([
+          { user_id: user.id, name, whatsapp, email }
+        ]);
+
+      if (error) {
+        if (error.code === '23505') {
+          alert("Anda sudah pernah mendaftar.");
+        } else {
+          alert("Gagal menyimpan data: " + error.message);
+        }
+        return;
+      }
+
+      closeModal();
+      showWelcomeMessage(name);
+    }
+
+    function showWelcomeMessage(name) {
+      registerBtn.textContent = `Halo, ${name}! Terima kasih sudah mendaftar 🎉`;
+      registerBtn.disabled = true;
+      registerBtn.style.cursor = "not-allowed";
+    }
+
+    registerBtn.addEventListener('click', async () => {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) {
+        signInWithGoogle();
+      } else {
+        const registered = await checkIfRegistered(session.user.id);
+        if (!registered) {
           openModal(session.user.email);
         }
-      } else if (event === 'SIGNED_OUT') {
-        registerBtn.textContent = "Pre-Register Sekarang";
-        registerBtn.onclick = signInWithGoogle;
       }
     });
-  });
-
-  async function signInWithGoogle() {
-    const { error } = await supabaseClient.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.href // penting untuk kembali ke halaman ini
-      }
-    });
-    if (error) alert('Gagal login dengan Google: ' + error.message);
-  }
-
-  async function checkIfRegistered(userId) {
-    const { data, error } = await supabaseClient
-      .from('pre_registrations')
-      .select('id')
-      .eq('user_id', userId)
-      .maybeSingle(); // atau .single() + tangkap error
-
-    return !!data;
-  }
-
-  function openModal(email) {
-    document.getElementById('email').value = email;
-    modal.style.display = 'flex';
-  }
-
-  function closeModal() {
-    modal.style.display = 'none';
-  }
-
-  async function submitRegistration() {
-    const name = document.getElementById('name').value.trim();
-    const whatsapp = document.getElementById('whatsapp').value.trim();
-    const email = document.getElementById('email').value;
-
-    if (!name || !whatsapp || !email) {
-      alert("Semua field harus diisi!");
-      return;
-    }
-
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
-    if (authError || !user) {
-      alert("Anda belum login.");
-      return;
-    }
-
-    const { error } = await supabaseClient
-      .from('pre_registrations')
-      .insert([
-        { user_id: user.id, name, whatsapp, email }
-      ]);
-
-    if (error) {
-      if (error.code === '23505') {
-        alert("Anda sudah pernah mendaftar.");
-      } else {
-        alert("Gagal menyimpan data: " + error.message);
-      }
-      return;
-    }
-
-    closeModal();
-    showWelcomeMessage(name);
-  }
-
-  function showWelcomeMessage(name) {
-    registerBtn.textContent = `Halo, ${name}! Terima kasih sudah mendaftar 🎉`;
-    registerBtn.disabled = true;
-    registerBtn.style.cursor = "not-allowed";
-  }
-
-  // Event listener untuk tombol
-  registerBtn.addEventListener('click', async () => {
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (!session) {
-      signInWithGoogle();
-    } else {
-      const registered = await checkIfRegistered(session.user.id);
-      if (!registered) {
-        openModal(session.user.email);
-      }
-    }
-  });
-</script>
+  </script>
 </body>
 </html>
