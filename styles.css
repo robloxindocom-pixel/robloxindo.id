@@ -1,64 +1,71 @@
-/* Reset default margin and padding */
+/* Reset */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-html, body {
-  height: 100%;
-  width: 100%;
+body {
+  background: #000;
   overflow: hidden;
   font-family: 'Arial', sans-serif;
 }
 
-/* Partikel canvas full screen */
+/* Fullscreen partikel */
 #particle-canvas {
   position: fixed;
   top: 0;
   left: 0;
-  z-index: -1;
   width: 100vw;
   height: 100vh;
+  z-index: -1;
 }
 
-/* Hero section untuk teks */
+/* Hero teks tengah */
 .hero {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   display: flex;
-  align-items: center;
   justify-content: center;
-  height: 100vh;
+  align-items: center;
+  pointer-events: none;
   text-align: center;
   padding: 20px;
 }
 
+/* Efek teks */
 #text-effect {
-  color: white;
-  font-size: 3rem;
-  text-decoration: none;
+  font-size: 4rem;
+  color: transparent;
+  text-shadow: 0 0 10px #ffcc00, 0 0 20px #ffcc00, 0 0 30px #ffcc00;
   font-weight: bold;
-  background: rgba(0, 0, 0, 0.4);
-  padding: 20px 40px;
-  border-radius: 12px;
-  transition: transform 0.3s ease, background 0.3s ease;
+  letter-spacing: 2px;
+  opacity: 1; /* ubah ke 1 kalau ingin langsung muncul */
+  pointer-events: auto;
+  transition: opacity 0.5s ease;
+  text-decoration: none;
 }
 
-#text-effect:hover {
-  transform: scale(1.05);
-  background: rgba(0, 0, 0, 0.6);
+/* RESPONSIVE */
+
+@media (max-width: 1024px) {
+  #text-effect {
+    font-size: 3rem;
+  }
 }
 
-/* RESPONSIVE MEDIA QUERIES */
 @media (max-width: 768px) {
   #text-effect {
-    font-size: 2rem;
-    padding: 15px 30px;
+    font-size: 2.2rem;
   }
 }
 
 @media (max-width: 480px) {
   #text-effect {
     font-size: 1.5rem;
-    padding: 10px 20px;
+    letter-spacing: 1px;
   }
 }
