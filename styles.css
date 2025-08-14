@@ -34,9 +34,9 @@ body {
 }
 
 #text-effect {
-  /* Font size responsif: berubah sesuai lebar layar */
-  font-size: 8vw; /* Responsif: 8% dari lebar viewport */
-  max-font-size: 72px; /* Batas maksimal ukuran font */
+  /* Responsif */
+  font-size: 8vw;
+  max-font-size: 72px;
   color: transparent;
   background: linear-gradient(45deg, #ffcc00, #ff6600, #ffcc00);
   background-clip: text;
@@ -46,12 +46,29 @@ body {
   font-weight: bold;
   letter-spacing: 2px;
   opacity: 0;
-  pointer-events: auto; /* Agar bisa diklik */
+  pointer-events: auto;
   transition: opacity 1s ease;
-  white-space: nowrap; /* Hindari wrapping jika terlalu kecil */
+  white-space: nowrap;
+  cursor: pointer; /* Tanda bahwa teks bisa diklik */
+  position: relative; /* Diperlukan untuk animasi */
+  display: inline-block;
 }
 
-/* Optimasi untuk layar kecil (HP) */
+/* Animasi glow: cahaya berdenyut kuning-oranye */
+@keyframes glowPulse {
+  0%, 100% {
+    text-shadow: 0 0 15px rgba(255, 204, 0, 0.7), 0 0 25px rgba(255, 204, 0, 0.5);
+  }
+  50% {
+    text-shadow: 0 0 20px rgba(255, 102, 0, 0.8), 0 0 35px rgba(255, 102, 0, 0.6), 0 0 10px rgba(255, 204, 0, 0.4);
+  }
+}
+
+#text-effect {
+  animation: glowPulse 2s ease-in-out infinite;
+}
+
+/* HP Kecil */
 @media (max-width: 480px) {
   #text-effect {
     font-size: 6vw;
@@ -69,6 +86,6 @@ body {
 /* Desktop */
 @media (min-width: 769px) {
   #text-effect {
-    font-size: 5rem; /* Bisa tetap besar di desktop */
+    font-size: 5rem;
   }
 }
