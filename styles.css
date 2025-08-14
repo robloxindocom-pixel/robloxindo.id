@@ -1,41 +1,64 @@
+/* Reset default margin and padding */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-body {
-  background: #000;
+html, body {
+  height: 100%;
+  width: 100%;
   overflow: hidden;
   font-family: 'Arial', sans-serif;
 }
 
+/* Partikel canvas full screen */
 #particle-canvas {
   position: fixed;
   top: 0;
   left: 0;
   z-index: -1;
+  width: 100vw;
+  height: 100vh;
 }
 
+/* Hero section untuk teks */
 .hero {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
   display: flex;
-  justify-content: center;
   align-items: center;
-  pointer-events: none;
+  justify-content: center;
+  height: 100vh;
+  text-align: center;
+  padding: 20px;
 }
 
 #text-effect {
-  font-size: 4rem;
-  color: transparent;
-  text-shadow: 0 0 10px #ffcc00;
+  color: white;
+  font-size: 3rem;
+  text-decoration: none;
   font-weight: bold;
-  letter-spacing: 2px;
-  opacity: 0;
-  pointer-events: auto;
-  transition: opacity 0.5s ease;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 20px 40px;
+  border-radius: 12px;
+  transition: transform 0.3s ease, background 0.3s ease;
+}
+
+#text-effect:hover {
+  transform: scale(1.05);
+  background: rgba(0, 0, 0, 0.6);
+}
+
+/* RESPONSIVE MEDIA QUERIES */
+@media (max-width: 768px) {
+  #text-effect {
+    font-size: 2rem;
+    padding: 15px 30px;
+  }
+}
+
+@media (max-width: 480px) {
+  #text-effect {
+    font-size: 1.5rem;
+    padding: 10px 20px;
+  }
 }
