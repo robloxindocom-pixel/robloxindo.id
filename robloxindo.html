@@ -203,44 +203,18 @@
     const registerBtn = document.getElementById('registerBtn');
     const modal = document.getElementById('modal');
 
-    // === 2. Auth & Logic ===
-    window.addEventListener('load', async () => {
-      const { data: { session } } = await supabaseClient.auth.getSession();
+    // === 2. Fungsi Bantu: Ambil nama dari pre_registrations ===
+    async function fetchUserName(userId) {
+      const { data, error } = await supabaseClient
+        .from('pre_registrations')
+        .select('name')
+        .eq('user_id', userId)
+        .single();
 
-      if (session) {
-        const registered = await checkIfRegistered(session.user.id);
-        if (registered) {
-          showWelcomeMessage(session.user.user_metadata?.full_name || session.user.email.split('@')[0]);
-        } else {
-          registerBtn.textContent = "Lanjutkan Pre-Register";
-        }
-      }
-
-      supabaseClient.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'SIGNED_IN') {
-          const registered = await checkIfRegistered(session.user.id);
-          if (registered) {
-            showWelcomeMessage(session.user.user_metadata?.full_name || session.user.email.split('@')[0]);
-          } else {
-            openModal(session.user.email);
-          }
-        } else if (event === 'SIGNED_OUT') {
-          registerBtn.textContent = "Pre-Register Sekarang";
-          registerBtn.onclick = signInWithGoogle;
-        }
-      });
-    });
-
-    async function signInWithGoogle() {
-      const { error } = await supabaseClient.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.href
-        }
-      });
-      if (error) alert('Gagal login dengan Google: ' + error.message);
+      return data?.name || null;
     }
 
+    // === 3. Cek apakah user sudah mendaftar ===
     async function checkIfRegistered(userId) {
       const { data, error } = await supabaseClient
         .from('pre_registrations')
@@ -250,6 +224,14 @@
       return !!data;
     }
 
+    // === 4. Tampilkan pesan selamat datang ===
+    function showWelcomeMessage(name) {
+      registerBtn.textContent = `Halo, ${name}! Terima kasih sudah mendaftar 🎉`;
+      registerBtn.disabled = true;
+      registerBtn.style.cursor = "not-allowed";
+    }
+
+    // === 5. Buka modal dengan email ===
     function openModal(email) {
       document.getElementById('email').value = email;
       modal.style.display = 'flex';
@@ -259,6 +241,7 @@
       modal.style.display = 'none';
     }
 
+    // === 6. Submit form pre-register ===
     async function submitRegistration() {
       const name = document.getElementById('name').value.trim();
       const whatsapp = document.getElementById('whatsapp').value.trim();
@@ -291,15 +274,57 @@
       }
 
       closeModal();
-      showWelcomeMessage(name);
+      showWelcomeMessage(name); // Gunakan nama dari input
     }
 
-    function showWelcomeMessage(name) {
-      registerBtn.textContent = `Halo, ${name}! Terima kasih sudah mendaftar 🎉`;
-      registerBtn.disabled = true;
-      registerBtn.style.cursor = "not-allowed";
+    // === 7. Login dengan Google ===
+    async function signInWithGoogle() {
+      const { error } = await supabaseClient.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.href
+        }
+      });
+      if (error) alert('Gagal login dengan Google: ' + error.message);
     }
 
+    // === 8. Inisialisasi saat halaman dimuat ===
+    window.addEventListener('load', async () => {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+
+      if (session) {
+        const registered = await checkIfRegistered(session.user.id);
+        if (registered) {
+          // Ambil nama dari database
+          const nameFromDb = await fetchUserName(session.user.id);
+          const fallbackName = session.user.user_metadata?.full_name || session.user.email.split('@')[0];
+          const displayName = nameFromDb || fallbackName;
+          showWelcomeMessage(displayName);
+        } else {
+          registerBtn.textContent = "Lanjutkan Pre-Register";
+        }
+      }
+
+      // Dengarkan perubahan auth state
+      supabaseClient.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN') {
+          const registered = await checkIfRegistered(session.user.id);
+          if (registered) {
+            const nameFromDb = await fetchUserName(session.user.id);
+            const fallbackName = session.user.user_metadata?.full_name || session.user.email.split('@')[0];
+            const displayName = nameFromDb || fallbackName;
+            showWelcomeMessage(displayName);
+          } else {
+            openModal(session.user.email);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          registerBtn.textContent = "Pre-Register Sekarang";
+          registerBtn.onclick = signInWithGoogle;
+        }
+      });
+    });
+
+    // Tombol utama
     registerBtn.addEventListener('click', async () => {
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (!session) {
