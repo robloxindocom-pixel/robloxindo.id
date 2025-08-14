@@ -27,14 +27,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const explosionSound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-whoosh-whoosh-3000.mp3');
   const clickSound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-small-impact-674.mp3');
 
+  // Pastikan URL tidak ada spasi ekstra
+  explosionSound.preload = 'auto';
+  clickSound.preload = 'auto';
+
   function playExplosion() {
     explosionSound.currentTime = 0;
-    explosionSound.play().catch(e => console.log("Suara ledakan diblokir"));
+    explosionSound.play().catch(e => console.log("Suara ledakan diblokir:", e));
   }
 
   function playClick() {
     clickSound.currentTime = 0;
-    clickSound.play().catch(e => console.log("Suara klik diblokir"));
+    clickSound.play().catch(e => console.log("Suara klik diblokir:", e));
   }
 
   // Event: mouse move
@@ -43,7 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
     mouse.y = e.y;
   });
 
-  // Event: klik → ledakan kecil (opsional, bisa dihapus)
+  // Event: klik → ledakan kecil (opsional)
   window.addEventListener('click', (e) => {
     playClick();
     for (let i = 0; i < 150; i++) {
@@ -54,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Class Partikel (harus didefinisikan SEBELUM digunakan)
+  // Class Partikel
   class Particle {
     constructor(x, y, color = 'orange', size = 2) {
       this.x = x;
@@ -72,7 +76,10 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.fillRect(this.x, this.y, this.size, this.size);
     }
 
-    update() {
+    update(deltaTime) {
+      // Normalisasi ke 60 FPS
+      const dtFactor = deltaTime * 60;
+
       // 1. Berkumpul ke posisi teks
       if (formingText && !textFormed) {
         const dx = this.originX - this.x;
@@ -80,11 +87,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         if (dist > 1) {
-          this.x += dx * 0.05;
-          this.y += dy * 0.05;
+          this.x += dx * 0.05 * dtFactor;
+          this.y += dy * 0.05 * dtFactor;
         }
       }
-      // 2. Meledak: gunakan kecepatan tinggi
+      // 2. Meledak: ledakan ke segala arah
       else if (!explosionDone) {
         if (this.speedX === 0 && this.speedY === 0) {
           const angle = Math.random() * Math.PI * 2;
@@ -92,10 +99,10 @@ document.addEventListener('DOMContentLoaded', () => {
           this.speedX = Math.cos(angle) * speed;
           this.speedY = Math.sin(angle) * speed;
         }
-        this.x += this.speedX;
-        this.y += this.speedY;
+        this.x += this.speedX * dtFactor;
+        this.y += this.speedY * dtFactor;
       }
-      // 3. Setelah meledak → interaksi + gerakan santai
+      // 3. Setelah ledakan → interaksi + gerakan santai
       else {
         // Tarik ke mouse
         if (mouse.x && mouse.y) {
@@ -106,25 +113,26 @@ document.addEventListener('DOMContentLoaded', () => {
           if (distance < mouse.radius) {
             const force = (mouse.radius - distance) / mouse.radius;
             const strength = (1 - force) * 3;
-            this.speedX -= dx * force * 0.06 * strength;
-            this.speedY -= dy * force * 0.06 * strength;
+            this.speedX -= dx * force * 0.06 * strength * dtFactor;
+            this.speedY -= dy * force * 0.06 * strength * dtFactor;
           }
         }
 
-        // Gerakan santai
-        this.speedX += (Math.random() - 0.5) * 0.2;
-        this.speedY += (Math.random() - 0.5) * 0.2;
+        // Gerakan acak halus
+        this.speedX += (Math.random() - 0.5) * 0.2 * dtFactor;
+        this.speedY += (Math.random() - 0.5) * 0.2 * dtFactor;
 
-        // Batasi kecepatan
-        if (this.speedX > 4) this.speedX = 4;
-        if (this.speedX < -4) this.speedX = -4;
-        if (this.speedY > 4) this.speedY = 4;
-        if (this.speedY < -4) this.speedY = -4;
+        // Batasi kecepatan maksimal
+        const maxSpeed = 4;
+        if (this.speedX > maxSpeed) this.speedX = maxSpeed;
+        if (this.speedX < -maxSpeed) this.speedX = -maxSpeed;
+        if (this.speedY > maxSpeed) this.speedY = maxSpeed;
+        if (this.speedY < -maxSpeed) this.speedY = -maxSpeed;
 
-        this.x += this.speedX;
-        this.y += this.speedY;
+        this.x += this.speedX * dtFactor;
+        this.y += this.speedY * dtFactor;
 
-        // Loop di layar
+        // Loop dari sisi lain layar
         if (this.x < 0) this.x = canvas.width;
         if (this.x > canvas.width) this.x = 0;
         if (this.y < 0) this.y = canvas.height;
@@ -133,7 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Ambil posisi dari teks
+  // Buat partikel dari posisi teks
   function createTextParticles() {
     const tempCanvas = document.createElement('canvas');
     const tempCtx = tempCanvas.getContext('2d');
@@ -160,25 +168,33 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Acak urutan
+    // Acak urutan partikel
     textParticles.sort(() => Math.random() - 0.5);
 
-    // Buat 500 partikel AWAL dari luar layar
+    // Buat 500 partikel awal dari luar layar
     for (let i = 0; i < 500; i++) {
       const x = Math.random() * canvas.width * 3 - canvas.width;
       const y = Math.random() * canvas.height * 3 - canvas.height;
-      const hue = Math.random() * 20 + 20;
+      const hue = Math.random() * 20 + 20; // Warna oranye ke kuning
       const size = Math.random() * 5 + 1;
       particles.push(new Particle(x, y, `hsl(${hue}, 100%, 65%)`, size));
     }
   }
 
-  // Animasi utama
-  function animate() {
+  // Animasi utama dengan deltaTime
+  let lastTime = 0;
+
+  function animate(currentTime) {
+    const deltaTime = currentTime - lastTime;
+    lastTime = currentTime;
+
+    // Konversi ke detik, normalisasi ke 60 FPS
+    const dt = deltaTime / 1000;
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     particles.forEach(p => {
-      p.update();
+      p.update(dt);
       p.draw();
     });
 
@@ -194,23 +210,24 @@ document.addEventListener('DOMContentLoaded', () => {
         textFormed = true;
         textElement.style.opacity = 1;
         playExplosion(); // 🔊 Suara ledakan
-        explosionDone = true; // Mulai ledakan
+        explosionDone = true; // Mulai fase interaksi
       }
     }
 
     requestAnimationFrame(animate);
   }
 
-  // Resize
+  // Resize canvas saat ukuran layar berubah
   window.addEventListener('resize', () => {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
+    // Optional: reset textParticles jika perlu, tapi tidak wajib
   });
 
   // Inisialisasi
   createTextParticles();
 
-  // Mulai bentuk teks setelah 1 detik
+  // Mulai membentuk teks setelah 1 detik
   setTimeout(() => {
     formingText = true;
     for (let i = 0; i < Math.min(particles.length, textParticles.length); i++) {
@@ -220,5 +237,5 @@ document.addEventListener('DOMContentLoaded', () => {
   }, 1000);
 
   // Jalankan animasi
-  animate();
+  requestAnimationFrame(animate);
 });
