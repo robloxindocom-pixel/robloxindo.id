@@ -14,6 +14,8 @@ body {
   position: fixed;
   top: 0;
   left: 0;
+  width: 100%;
+  height: 100%;
   z-index: -1;
 }
 
@@ -27,15 +29,46 @@ body {
   justify-content: center;
   align-items: center;
   pointer-events: none;
+  text-align: center;
+  padding: 20px;
 }
 
 #text-effect {
-  font-size: 4rem;
+  /* Font size responsif: berubah sesuai lebar layar */
+  font-size: 8vw; /* Responsif: 8% dari lebar viewport */
+  max-font-size: 72px; /* Batas maksimal ukuran font */
   color: transparent;
-  text-shadow: 0 0 10px #ffcc00;
+  background: linear-gradient(45deg, #ffcc00, #ff6600, #ffcc00);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 15px rgba(255, 204, 0, 0.5);
   font-weight: bold;
   letter-spacing: 2px;
   opacity: 0;
-  pointer-events: auto;
-  transition: opacity 0.5s ease;
+  pointer-events: auto; /* Agar bisa diklik */
+  transition: opacity 1s ease;
+  white-space: nowrap; /* Hindari wrapping jika terlalu kecil */
+}
+
+/* Optimasi untuk layar kecil (HP) */
+@media (max-width: 480px) {
+  #text-effect {
+    font-size: 6vw;
+    letter-spacing: 1px;
+  }
+}
+
+/* Tablet */
+@media (min-width: 481px) and (max-width: 768px) {
+  #text-effect {
+    font-size: 7vw;
+  }
+}
+
+/* Desktop */
+@media (min-width: 769px) {
+  #text-effect {
+    font-size: 5rem; /* Bisa tetap besar di desktop */
+  }
 }
