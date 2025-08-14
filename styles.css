@@ -1,71 +1,20 @@
-/* Reset */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Robloxindo Team</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Canvas untuk partikel -->
+  <canvas id="particle-canvas"></canvas>
 
-body {
-  background: #000;
-  overflow: hidden;
-  font-family: 'Arial', sans-serif;
-}
+  <!-- Teks yang muncul setelah partikel -->
+  <div class="hero">
+    <a href="robloxindo.html" id="text-effect">TOGETHER WE CREATE</a>
+  </div>
 
-/* Fullscreen partikel */
-#particle-canvas {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: -1;
-}
-
-/* Hero teks tengah */
-.hero {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  pointer-events: none;
-  text-align: center;
-  padding: 20px;
-}
-
-/* Efek teks */
-#text-effect {
-  font-size: 4rem;
-  color: transparent;
-  text-shadow: 0 0 10px #ffcc00, 0 0 20px #ffcc00, 0 0 30px #ffcc00;
-  font-weight: bold;
-  letter-spacing: 2px;
-  opacity: 1; /* ubah ke 1 kalau ingin langsung muncul */
-  pointer-events: auto;
-  transition: opacity 0.5s ease;
-  text-decoration: none;
-}
-
-/* RESPONSIVE */
-
-@media (max-width: 1024px) {
-  #text-effect {
-    font-size: 3rem;
-  }
-}
-
-@media (max-width: 768px) {
-  #text-effect {
-    font-size: 2.2rem;
-  }
-}
-
-@media (max-width: 480px) {
-  #text-effect {
-    font-size: 1.5rem;
-    letter-spacing: 1px;
-  }
-}
+  <script src="particles.js"></script>
+</body>
+</html>
