@@ -138,134 +138,129 @@
   </div>
 
   <script>
-    // Inisialisasi Supabase
-    const supabaseUrl = 'https://kbhkwpngplzjglewekpx.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtiaGt3cG5ncGx6amdsZXdla3B4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxNjI1MjYsImV4cCI6MjA3MDczODUyNn0.V3cAXAr4lv9rD652XrzqAAszrZezN4ZxvSqnjB3iwtQ';
-    const supabase = supabase.supabase.createClient(supabaseUrl, supabaseKey);
+  // === 1. Inisialisasi Supabase DI AWAL, sebelum digunakan ===
+  const supabaseUrl = 'https://kbhkwpngplzjglewekpx.supabase.co';
+  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtiaGt3cG5ncGx6amdsZXdla3B4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxNjI1MjYsImV4cCI6MjA3MDczODUyNn0.V3cAXAr4lv9rD652XrzqAAszrZezN4ZxvSqnjB3iwtQ';
+  
+  // ❌ Salah: supabase.supabase.createClient
+  // ✅ Benar: supabase.createClient
+  const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
-    const registerBtn = document.getElementById('registerBtn');
-    const modal = document.getElementById('modal');
+  const registerBtn = document.getElementById('registerBtn');
+  const modal = document.getElementById('modal');
 
-    // Cek status login saat halaman dimuat
-    window.addEventListener('load', async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
+  // === 2. Pastikan semua fungsi menggunakan `supabaseClient` ===
+  window.addEventListener('load', async () => {
+    // Sekarang aman, karena supabaseClient sudah dibuat
+    const { data: { session } } = await supabaseClient.auth.getSession();
+
+    if (session) {
+      const registered = await checkIfRegistered(session.user.id);
+      if (registered) {
+        showWelcomeMessage(session.user.user_metadata?.full_name || session.user.email.split('@')[0]);
+      } else {
+        registerBtn.textContent = "Lanjutkan Pre-Register";
+      }
+    }
+
+    // Dengarkan perubahan auth
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN') {
         const registered = await checkIfRegistered(session.user.id);
         if (registered) {
-          showWelcomeMessage(session.user.user_metadata.full_name || session.user.email.split('@')[0]);
+          showWelcomeMessage(session.user.user_metadata?.full_name || session.user.email.split('@')[0]);
         } else {
-          registerBtn.textContent = "Lanjutkan Pre-Register";
+          openModal(session.user.email);
         }
+      } else if (event === 'SIGNED_OUT') {
+        registerBtn.textContent = "Pre-Register Sekarang";
+        registerBtn.onclick = signInWithGoogle;
       }
-
-      // Dengarkan perubahan auth
-      supabase.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'SIGNED_IN') {
-          const registered = await checkIfRegistered(session.user.id);
-          if (registered) {
-            showWelcomeMessage(session.user.user_metadata.full_name || session.user.email.split('@')[0]);
-          } else {
-            openModal(session.user.email);
-          }
-        } else if (event === 'SIGNED_OUT') {
-          registerBtn.textContent = "Pre-Register Sekarang";
-          registerBtn.onclick = signInWithGoogle;
-        }
-      });
     });
+  });
 
-    async function signInWithGoogle() {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin + window.location.pathname // penting untuk redirect kembali
-        }
-      });
-      if (error) alert('Gagal login dengan Google: ' + error.message);
-    }
-
-    async function checkIfRegistered(userId) {
-      const { data, error } = await supabase
-        .from('pre_registrations')
-        .select('id')
-        .eq('user_id', userId)
-        .single();
-
-      return !!data;
-    }
-
-    function openModal(email) {
-      document.getElementById('email').value = email;
-      modal.style.display = 'flex';
-    }
-
-    function closeModal() {
-      modal.style.display = 'none';
-    }
-
-    async function submitRegistration() {
-      const name = document.getElementById('name').value.trim();
-      const whatsapp = document.getElementById('whatsapp').value.trim();
-      const email = document.getElementById('email').value;
-
-      if (!name || !whatsapp || !email) {
-        alert("Semua field harus diisi!");
-        return;
+  async function signInWithGoogle() {
+    const { error } = await supabaseClient.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.href // penting untuk kembali ke halaman ini
       }
+    });
+    if (error) alert('Gagal login dengan Google: ' + error.message);
+  }
 
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
+  async function checkIfRegistered(userId) {
+    const { data, error } = await supabaseClient
+      .from('pre_registrations')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle(); // atau .single() + tangkap error
 
-      if (authError || !user) {
-        alert("Anda belum login.");
-        return;
-      }
+    return !!data;
+  }
 
-      const { error } = await supabase
-        .from('pre_registrations')
-        .insert([
-          {
-            user_id: user.id,
-            name,
-            whatsapp,
-            email,
-          },
-        ]);
+  function openModal(email) {
+    document.getElementById('email').value = email;
+    modal.style.display = 'flex';
+  }
 
-      if (error) {
-        if (error.code === '23505') {
-          alert("Anda sudah pernah mendaftar.");
-        } else {
-          alert("Gagal menyimpan data: " + error.message);
-        }
-        return;
-      }
+  function closeModal() {
+    modal.style.display = 'none';
+  }
 
-      closeModal();
-      showWelcomeMessage(name);
+  async function submitRegistration() {
+    const name = document.getElementById('name').value.trim();
+    const whatsapp = document.getElementById('whatsapp').value.trim();
+    const email = document.getElementById('email').value;
+
+    if (!name || !whatsapp || !email) {
+      alert("Semua field harus diisi!");
+      return;
     }
 
-    function showWelcomeMessage(name) {
-      registerBtn.textContent = `Halo, ${name}! Terima kasih sudah mendaftar 🎉`;
-      registerBtn.disabled = true;
-      registerBtn.style.cursor = "not-allowed";
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+    if (authError || !user) {
+      alert("Anda belum login.");
+      return;
     }
 
-    // Event listener untuk tombol
-    registerBtn.addEventListener('click', () => {
-      const { data: { session } } = supabase.auth.getSession();
-      if (!session) {
-        signInWithGoogle();
+    const { error } = await supabaseClient
+      .from('pre_registrations')
+      .insert([
+        { user_id: user.id, name, whatsapp, email }
+      ]);
+
+    if (error) {
+      if (error.code === '23505') {
+        alert("Anda sudah pernah mendaftar.");
       } else {
-        checkIfRegistered(session.user.id).then(registered => {
-          if (!registered) {
-            openModal(session.user.email);
-          }
-        });
+        alert("Gagal menyimpan data: " + error.message);
       }
-    });
-  </script>
+      return;
+    }
+
+    closeModal();
+    showWelcomeMessage(name);
+  }
+
+  function showWelcomeMessage(name) {
+    registerBtn.textContent = `Halo, ${name}! Terima kasih sudah mendaftar 🎉`;
+    registerBtn.disabled = true;
+    registerBtn.style.cursor = "not-allowed";
+  }
+
+  // Event listener untuk tombol
+  registerBtn.addEventListener('click', async () => {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) {
+      signInWithGoogle();
+    } else {
+      const registered = await checkIfRegistered(session.user.id);
+      if (!registered) {
+        openModal(session.user.email);
+      }
+    }
+  });
+</script>
 </body>
 </html>
