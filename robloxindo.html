@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Robloxindo Marketplace</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- Particles.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
   <style>
     body {
@@ -24,7 +23,6 @@
       position: relative;
     }
 
-    /* Particles container */
     #particles-js {
       position: fixed;
       top: 0;
@@ -137,6 +135,11 @@
   <p>Marketplace global untuk menghubungkan penjual & pembeli lintas negara. sedang dalam pengembangan Cekdeal.xyz/team</p>
   <button id="registerBtn" class="btn">Pre-Register Sekarang</button>
 
+  <!-- Tombol Marketplace muncul jika sudah terdaftar -->
+  <div id="marketplaceBtnContainer" style="margin-top: 10px; z-index: 1; display: none;">
+    <a href="https://cekdeal.xyz" target="_blank" class="btn">➡️ Masuk ke MarketPlace</a>
+  </div>
+
   <!-- Modal -->
   <div id="modal" class="modal">
     <div class="modal-content">
@@ -201,6 +204,7 @@
     const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
     const registerBtn = document.getElementById('registerBtn');
+    const marketplaceBtnContainer = document.getElementById('marketplaceBtnContainer');
     const modal = document.getElementById('modal');
 
     // === 2. Fungsi Bantu: Ambil nama dari pre_registrations ===
@@ -224,14 +228,21 @@
       return !!data;
     }
 
-    // === 4. Tampilkan pesan selamat datang ===
+    // === 4. Tampilkan pesan selamat datang dan tombol marketplace ===
     function showWelcomeMessage(name) {
       registerBtn.textContent = `Halo, ${name}! Pendaftaranmu Berhasil – Stay Tuned`;
       registerBtn.disabled = true;
       registerBtn.style.cursor = "not-allowed";
+      
+      // Tampilkan tombol marketplace
+      marketplaceBtnContainer.style.display = 'block';
     }
 
-    // === 5. Buka modal dengan email ===
+    // === 5. Sembunyikan tombol marketplace dan reset tampilan ===
+    function hideMarketplaceButton() {
+      marketplaceBtnContainer.style.display = 'none';
+    }
+
     function openModal(email) {
       document.getElementById('email').value = email;
       modal.style.display = 'flex';
@@ -274,7 +285,7 @@
       }
 
       closeModal();
-      showWelcomeMessage(name); // Gunakan nama dari input
+      showWelcomeMessage(name);
     }
 
     // === 7. Login dengan Google ===
@@ -295,14 +306,16 @@
       if (session) {
         const registered = await checkIfRegistered(session.user.id);
         if (registered) {
-          // Ambil nama dari database
           const nameFromDb = await fetchUserName(session.user.id);
           const fallbackName = session.user.user_metadata?.full_name || session.user.email.split('@')[0];
           const displayName = nameFromDb || fallbackName;
           showWelcomeMessage(displayName);
         } else {
           registerBtn.textContent = "Lanjutkan Pre-Register";
+          hideMarketplaceButton();
         }
+      } else {
+        hideMarketplaceButton();
       }
 
       // Dengarkan perubahan auth state
@@ -316,10 +329,12 @@
             showWelcomeMessage(displayName);
           } else {
             openModal(session.user.email);
+            hideMarketplaceButton();
           }
         } else if (event === 'SIGNED_OUT') {
           registerBtn.textContent = "Pre-Register Sekarang";
           registerBtn.onclick = signInWithGoogle;
+          hideMarketplaceButton();
         }
       });
     });
