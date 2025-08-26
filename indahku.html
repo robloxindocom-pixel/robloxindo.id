@@ -15,7 +15,7 @@
     .img { max-width: 200px; border-radius: 8px; margin-top: 5px; }
     #input-area { display: flex; gap: 5px; margin-bottom: 10px; }
     input, button { padding: 8px; }
-    #clear-btn { background: red; color: white; border: none; }
+    #clear-all-btn { background: red; color: white; border: none; }
     #logout-btn { float: right; font-size: 0.8em; }
   </style>
 </head>
@@ -51,31 +51,29 @@
   </div>
 
   <script type="module">
+    // ✅ Fix: spasi di import & URL
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-    // ✅ GANTI INI DENGAN YANG BARU SETELAH REGENERATE
     const supabase = createClient(
       'https://szshmnxuafjnisspzzxz.supabase.co',  // ✅ Fix: no spaces
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6c2htbnh1YWZqbmlzc3B6enh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5NTM5NzAsImV4cCI6MjA3MTUyOTk3MH0.3Yiqz7KE6Q4bQAUp5aBsnrmwoiWF1IF7cborKyJ4kDA'
     )
 
-    const ADMIN_EMAIL = 'robloxindo.com@gmail.com'  // ✅ Ganti jika perlu
+    const ADMIN_EMAIL = 'robloxindo.com@gmail.com'
 
-    // Elements
     const loginSection = document.getElementById('login-section')
     const adminPanel = document.getElementById('admin-panel')
     const chatSection = document.getElementById('chat-section')
     const adminEmailEl = document.getElementById('admin-email')
     const messagesEl = document.getElementById('messages')
 
-    // Buttons
     document.getElementById('login-btn').onclick = loginAdmin
     document.getElementById('logout-btn').onclick = logoutAdmin
     document.getElementById('update-key-btn').onclick = updateAccessKey
     document.getElementById('clear-all-btn').onclick = clearAllMessages
     document.getElementById('send-btn').onclick = sendMessage
 
-    // Cek session saat load
+    // ✅ Cek session saat load
     const { data: { session } } = await supabase.auth.getSession()
     handleAuthState(session)
 
@@ -96,7 +94,6 @@
         loginSection.classList.remove('hidden')
         adminPanel.classList.add('hidden')
         chatSection.classList.add('hidden')
-        // Tampilkan form kode untuk istri
         if (!document.getElementById('key-form')) {
           const form = document.createElement('div')
           form.id = 'key-form'
@@ -110,12 +107,17 @@
       }
     }
 
+    // ✅ Fix: redirectTo wajib ke /auth/callback
     async function loginAdmin() {
+      const redirectUrl = window.location.origin + '/auth/callback'
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: window.location.origin }
+        options: { redirectTo: redirectUrl }
       })
-      if (error) alert('Login gagal')
+      if (error) {
+        console.error('Login error:', error)
+        alert('Gagal login: ' + error.message)
+      }
     }
 
     function logoutAdmin() {
@@ -195,15 +197,20 @@
           .from('chat-images')
           .upload(fileName, file)
 
-        if (uploadError) return alert('Upload gagal')
+        if (uploadError) {
+          console.error('Upload error:', uploadError)
+          return alert('Upload gagal')
+        }
 
         const { data } = supabase.storage.from('chat-images').getPublicUrl(fileName)
         imageUrl = data.publicUrl
       }
 
       const { error } = await supabase.from('messages').insert([{ sender, content, image_url: imageUrl }])
-      if (error) alert('Gagal kirim')
-      else {
+      if (error) {
+        console.error('Send error:', error)
+        alert('Gagal kirim')
+      } else {
         document.getElementById('message').value = ''
         document.getElementById('image').value = ''
       }
@@ -220,6 +227,7 @@
         .eq('id', 1)
 
       if (error) {
+        console.error('Update key error:', error)
         alert('Gagal ubah kode')
       } else {
         alert('Kode berhasil diubah!')
@@ -232,6 +240,7 @@
       if (confirm('Hapus semua chat?')) {
         const { error } = await supabase.rpc('truncate_messages')
         if (error) {
+          console.error('Clear error:', error)
           alert('Gagal hapus')
         } else {
           messagesEl.innerHTML = ''
