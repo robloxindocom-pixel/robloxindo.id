@@ -156,6 +156,23 @@
       font-weight: 600;
     }
 
+    .delete-btn {
+      position: absolute;
+      top: 4px;
+      right: 8px;
+      background: none;
+      border: none;
+      color: red;
+      font-size: 16px;
+      cursor: pointer;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+    }
+
+    .delete-btn:hover {
+      opacity: 1;
+    }
+
     .message img {
       max-width: 180px;
       border-radius: 10px;
@@ -271,46 +288,37 @@
   <!-- Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
+    // ✅ Fix: Hapus spasi di URL dan Key
     const supabaseUrl = 'https://owjmllybdtpdkmmgevap.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im93am1sbHliZHRwZGttbWdldmFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYyMzU5NTIsImV4cCI6MjA3MTgxMTk1Mn0.q9Vnz1vXyUZdiQM6Sb-BwR4Whg3V3-5AptQtfU7M4hQ';
-    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
     let currentUser = null;
-    let pollingInterval = null; // Simpan interval untuk bisa di-clear
+    let pollingInterval = null;
 
-    // ✅ Fix 1: Gunakan suara yang lebih umum didukung (MP3 dengan format .mp3)
-    // Kita ganti ke suara dari mixkit yang lebih stabil
     const explosionSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2030/2030-preview.mp3');
     const clickSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2527/2527-preview.mp3');
-
-    // Pra-load suara (opsional)
     explosionSound.preload = 'auto';
     clickSound.preload = 'auto';
 
-    // Mainkan suara dengan pengecekan
     function playExplosion() {
       explosionSound.currentTime = 0;
-      explosionSound.play().catch(e => console.log("Suara ledakan tidak bisa diputar:", e));
+      explosionSound.play().catch(e => console.log("Suara ledakan:", e));
     }
 
     function playClick() {
       clickSound.currentTime = 0;
-      clickSound.play().catch(e => console.log("Suara klik tidak bisa diputar:", e));
+      clickSound.play().catch(e => console.log("Suara klik:", e));
     }
 
-    // Fungsi Logout
     async function signOut() {
-      if (pollingInterval) {
-        clearInterval(pollingInterval);
-        pollingInterval = null;
-      }
+      if (pollingInterval) clearInterval(pollingInterval);
       await supabase.auth.signOut();
       document.getElementById('chat-container').style.display = 'none';
       document.getElementById('login-screen').style.display = 'flex';
       currentUser = null;
     }
 
-    // Login
     async function signIn() {
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
@@ -333,7 +341,6 @@
       startPolling();
     }
 
-    // Kirim Pesan
     async function sendMessage() {
       if (!currentUser) return;
 
@@ -373,10 +380,9 @@
 
       input.value = '';
       fileInput.value = '';
-      loadMessages();
+      loadMessages(); // Update langsung
     }
 
-    // Enter untuk kirim
     document.getElementById('message-input').addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -384,17 +390,13 @@
       }
     });
 
-    // Load Pesan
+    // ✅ Fix: Tambahkan ID dan tombol hapus untuk admin
     async function loadMessages() {
-      // ✅ Cek: apakah user sudah login
-      if (!currentUser) {
-        console.log("Belum login, skip loadMessages");
-        return;
-      }
+      if (!currentUser) return;
 
       const { data, error } = await supabase
         .from('messages')
-        .select('sender, content, image_url, inserted_at')
+        .select('id, sender, content, image_url, inserted_at')
         .order('inserted_at', { ascending: true });
 
       if (error) {
@@ -405,17 +407,19 @@
       const messagesEl = document.getElementById('messages');
       messagesEl.innerHTML = '';
 
+      const isAdmin = currentUser.email === 'admin@gmail.com';
+
       data.forEach(msg => {
-        // ✅ Cek null atau undefined
         if (!msg.sender) return;
 
         const isMe = msg.sender === currentUser.email;
         const div = document.createElement('div');
         div.className = `message ${isMe ? 'sent' : 'received'}`;
+        div.style.position = 'relative';
 
         const username = document.createElement('div');
         username.className = 'username-display';
-        username.textContent = isMe ? 'Kamu' : 'Pasangan';
+        username.textContent = isMe ? 'Kamu' : (msg.sender === 'admin@gmail.com' ? 'Admin' : 'Pasangan');
         div.appendChild(username);
 
         if (msg.content) {
@@ -432,19 +436,42 @@
           div.appendChild(img);
         }
 
+        // ✅ Tambahkan tombol hapus hanya untuk admin
+        if (isAdmin) {
+          const deleteBtn = document.createElement('button');
+          deleteBtn.innerHTML = '❌';
+          deleteBtn.title = 'Hapus pesan';
+          deleteBtn.className = 'delete-btn';
+          deleteBtn.onclick = async (e) => {
+            e.stopPropagation();
+            if (confirm('Hapus pesan ini?')) {
+              const { error } = await supabase
+                .from('messages')
+                .delete()
+                .eq('id', msg.id);
+
+              if (error) {
+                alert('Gagal menghapus');
+              } else {
+                loadMessages(); // Refresh
+              }
+            }
+          };
+          div.appendChild(deleteBtn);
+        }
+
         messagesEl.appendChild(div);
       });
 
       messagesEl.scrollTop = messagesEl.scrollHeight;
     }
 
-    // Polling
     function startPolling() {
       if (pollingInterval) clearInterval(pollingInterval);
       pollingInterval = setInterval(loadMessages, 3000);
     }
 
-    // Cek session saat halaman dimuat
+    // Cek session
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) {
         currentUser = data.session.user;
@@ -455,7 +482,6 @@
       }
     });
 
-    // Optional: Dengarkan perubahan auth (misal logout dari tab lain)
     supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
         if (pollingInterval) clearInterval(pollingInterval);
@@ -466,7 +492,7 @@
     });
   </script>
 
-  <!-- Particles JS (Inline) -->
+  <!-- Particles JS -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const canvas = document.getElementById('particle-canvas');
@@ -609,7 +635,7 @@
           if (allClose && !explosionDone) {
             textFormed = true;
             textElement.style.opacity = 1;
-            playExplosion(); // Suara ledakan
+            playExplosion();
             explosionDone = true;
           }
         }
