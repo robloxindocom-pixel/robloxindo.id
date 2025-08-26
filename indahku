@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chat Kita</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 20px auto; padding: 10px; }
+    #login { text-align: center; }
+    #chat { display: none; flex-direction: column; height: 70vh; }
+    #messages { flex: 1; border: 1px solid #ccc; padding: 10px; overflow-y: auto; margin-bottom: 10px; }
+    .msg { margin: 8px 0; padding: 6px; background: #f1f1f1; border-radius: 8px; max-width: 80%; }
+    .me { background: #d0f0d0; align-self: flex-end; }
+    .name { font-weight: bold; font-size: 0.9em; color: #555; }
+    .img { max-width: 200px; border-radius: 8px; margin-top: 5px; }
+    #input-area { display: flex; gap: 5px; }
+    #input-area input { flex: 1; padding: 8px; }
+    #input-area button { padding: 8px 12px; }
+    #clear-btn { margin-top: 10px; background: red; color: white; border: none; padding: 6px; }
+  </style>
+</head>
+<body>
+  <!-- Layar Login -->
+  <div id="login">
+    <h2>Masukkan Kode Akses</h2>
+    <input type="password" id="access-key" placeholder="Kode akses" />
+    <button onclick="verifyKey()">Masuk</button>
+  </div>
+
+  <!-- Layar Chat -->
+  <div id="chat" style="display: none;">
+    <div id="messages"></div>
+    <div id="input-area">
+      <input type="text" id="sender" placeholder="Nama kamu" />
+      <input type="text" id="message" placeholder="Pesan..." />
+      <input type="file" id="image" accept="image/*" />
+      <button onclick="sendMessage()">Kirim</button>
+    </div>
+    <button id="clear-btn" onclick="clearAll()">Hapus Semua Chat (Admin)</button>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+
+    const supabase = createClient(
+      'https://szshmnxuafjnisspzzxz.supabase.co',  // GANTI INI
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6c2htbnh1YWZqbmlzc3B6enh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5NTM5NzAsImV4cCI6MjA3MTUyOTk3MH0.3Yiqz7KE6Q4bQAUp5aBsnrmwoiWF1IF7cborKyJ4kDA'                   // GANTI INI
+    )
+
+    const loginScreen = document.getElementById('login')
+    const chatScreen = document.getElementById('chat')
+    const messagesEl = document.getElementById('messages')
+    const keyInput = document.getElementById('access-key')
+
+    // === Verifikasi Kode Akses ===
+    async function verifyKey() {
+      const key = keyInput.value.trim()
+      if (!key) return alert('Masukkan kode')
+
+      // Cek kode dengan query ke access_keys
+      const { data, error } = await supabase
+        .from('access_keys')
+        .select('key')
+        .eq('id', 1)
+        .single()
+
+      if (error || data.key !== key) {
+        return alert('Kode salah!')
+      }
+
+      // Simpan kode di session (untuk validasi admin nanti)
+      sessionStorage.setItem('chatKey', key)
+      loginScreen.style.display = 'none'
+      chatScreen.style.display = 'flex'
+      loadMessages()
+      setupRealtime()
+    }
+
+    // === Muat Pesan Awal ===
+    async function loadMessages() {
+      const { data, error } = await supabase
+        .from('messages')
+        .select()
+        .order('inserted_at', { ascending: true })
+
+      if (error) return console.error(error)
+
+      messagesEl.innerHTML = ''
+      data.forEach(addMessageToUI)
+    }
+
+    // === Realtime: Update saat ada pesan baru ===
+    function setupRealtime() {
+      const channel = supabase
+        .channel('messages-changes')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'messages' },
+          (payload) => {
+            addMessageToUI(payload.new)
+            scrollToBottom()
+          }
+        )
+        .subscribe()
+    }
+
+    // === Tambah Pesan ke UI ===
+    function addMessageToUI(msg) {
+      const div = document.createElement('div')
+      div.className = 'msg'
+      if (msg.sender === 'Admin' || msg.sender === 'Kamu') div.classList.add('me')
+
+      div.innerHTML = `
+        <div class="name">${msg.sender}</div>
+        <div>${msg.content || ''}</div>
+        ${msg.image_url ? `<img src="${msg.image_url}" class="img"/>` : ''}
+      `
+      messagesEl.appendChild(div)
+      scrollToBottom()
+    }
+
+    function scrollToBottom() {
+      messagesEl.scrollTop = messagesEl.scrollHeight
+    }
+
+    // === Kirim Pesan ===
+    async function sendMessage() {
+      const sender = document.getElementById('sender').value.trim()
+      const content = document.getElementById('message').value.trim()
+      const file = document.getElementById('image').files[0]
+
+      if (!sender) return alert('Isi nama dulu')
+      if (!content && !file) return
+
+      let imageUrl = null
+
+      // Upload gambar jika ada
+      if (file) {
+        const fileName = `img_${Date.now()}_${Math.random().toString(36)}`
+        const { error: uploadError } = await supabase
+          .storage
+          .from('chat-images')
+          .upload(fileName, file)
+
+        if (uploadError) return alert('Gagal upload gambar')
+
+        const { data } = supabase.storage.from('chat-images').getPublicUrl(fileName)
+        imageUrl = data.publicUrl
+      }
+
+      // Simpan pesan
+      const { error } = await supabase
+        .from('messages')
+        .insert([{ sender, content, image_url: imageUrl }])
+
+      if (error) {
+        console.error(error)
+        alert('Gagal kirim')
+      } else {
+        document.getElementById('message').value = ''
+        document.getElementById('image').value = ''
+      }
+    }
+
+    // === Hapus Semua Chat (Hanya Admin) ===
+    async function clearAll() {
+      const key = sessionStorage.getItem('chatKey')
+      const { data } = await supabase
+        .from('access_keys')
+        .select('key')
+        .eq('id', 1)
+        .single()
+
+      if (!key || data.key !== key) {
+        return alert('Akses ditolak')
+      }
+
+      if (confirm('Yakin hapus semua chat?')) {
+        const { error } = await supabase.rpc('truncate_messages')
+        if (error) console.error(error)
+        messagesEl.innerHTML = ''
+      }
+    }
+
+    // === Fungsi untuk hapus semua pesan (RPC) ===
+    // Jalankan SQL ini di Supabase:
+    /*
+    CREATE OR REPLACE FUNCTION truncate_messages()
+    RETURNS void AS $$
+    BEGIN
+      DELETE FROM messages;
+    END;
+    $$ LANGUAGE plpgsql SECURITY DEFINER;
+    */
+  </script>
+</body>
+</html>
