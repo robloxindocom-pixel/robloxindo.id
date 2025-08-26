@@ -24,7 +24,7 @@
   <div id="login">
     <h2>Masukkan Kode Akses</h2>
     <input type="password" id="access-key" placeholder="Kode akses" />
-    <button onclick="verifyKey()">Masuk</button>
+    <button id="login-btn">Masuk</button>
   </div>
 
   <!-- Layar Chat -->
@@ -34,46 +34,61 @@
       <input type="text" id="sender" placeholder="Nama kamu" />
       <input type="text" id="message" placeholder="Pesan..." />
       <input type="file" id="image" accept="image/*" />
-      <button onclick="sendMessage()">Kirim</button>
+      <button id="send-btn">Kirim</button>
     </div>
-    <button id="clear-btn" onclick="clearAll()">Hapus Semua Chat (Admin)</button>
+    <button id="clear-btn">Hapus Semua Chat (Admin)</button>
   </div>
 
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
     const supabase = createClient(
-      'https://szshmnxuafjnisspzzxz.supabase.co',  // GANTI INI
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6c2htbnh1YWZqbmlzc3B6enh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5NTM5NzAsImV4cCI6MjA3MTUyOTk3MH0.3Yiqz7KE6Q4bQAUp5aBsnrmwoiWF1IF7cborKyJ4kDA'                   // GANTI INI
+      'https://ISIKAN_PROJECT_URL.supabase.co',  // GANTI INI
+      'ISIKAN_ANON_PUBLIC_KEY'                   // GANTI INI
     )
 
     const loginScreen = document.getElementById('login')
     const chatScreen = document.getElementById('chat')
     const messagesEl = document.getElementById('messages')
     const keyInput = document.getElementById('access-key')
+    const loginBtn = document.getElementById('login-btn')
+    const sendBtn = document.getElementById('send-btn')
+    const clearBtn = document.getElementById('clear-btn')
+
+    // === Event: Login ===
+    loginBtn.addEventListener('click', verifyKey)
+
+    // === Event: Kirim Pesan ===
+    sendBtn.addEventListener('click', sendMessage)
+
+    // === Event: Hapus Semua ===
+    clearBtn.addEventListener('click', clearAll)
 
     // === Verifikasi Kode Akses ===
     async function verifyKey() {
       const key = keyInput.value.trim()
       if (!key) return alert('Masukkan kode')
 
-      // Cek kode dengan query ke access_keys
-      const { data, error } = await supabase
-        .from('access_keys')
-        .select('key')
-        .eq('id', 1)
-        .single()
+      try {
+        const { data, error } = await supabase
+          .from('access_keys')
+          .select('key')
+          .eq('id', 1)
+          .single()
 
-      if (error || data.key !== key) {
-        return alert('Kode salah!')
+        if (error || data.key !== key) {
+          return alert('Kode salah!')
+        }
+
+        sessionStorage.setItem('chatKey', key)
+        loginScreen.style.display = 'none'
+        chatScreen.style.display = 'flex'
+        loadMessages()
+        setupRealtime()
+      } catch (err) {
+        console.error(err)
+        alert('Gagal verifikasi')
       }
-
-      // Simpan kode di session (untuk validasi admin nanti)
-      sessionStorage.setItem('chatKey', key)
-      loginScreen.style.display = 'none'
-      chatScreen.style.display = 'flex'
-      loadMessages()
-      setupRealtime()
     }
 
     // === Muat Pesan Awal ===
@@ -83,7 +98,7 @@
         .select()
         .order('inserted_at', { ascending: true })
 
-      if (error) return console.error(error)
+      if (error) return console.error('Load error:', error)
 
       messagesEl.innerHTML = ''
       data.forEach(addMessageToUI)
@@ -130,68 +145,62 @@
       const file = document.getElementById('image').files[0]
 
       if (!sender) return alert('Isi nama dulu')
-      if (!content && !file) return
+      if (!content && !file) return alert('Isi pesan atau pilih gambar')
 
       let imageUrl = null
 
-      // Upload gambar jika ada
       if (file) {
         const fileName = `img_${Date.now()}_${Math.random().toString(36)}`
+
         const { error: uploadError } = await supabase
           .storage
           .from('chat-images')
           .upload(fileName, file)
 
-        if (uploadError) return alert('Gagal upload gambar')
+        if (uploadError) {
+          console.error('Upload error:', uploadError)
+          return alert('Gagal upload gambar')
+        }
 
         const { data } = supabase.storage.from('chat-images').getPublicUrl(fileName)
         imageUrl = data.publicUrl
       }
 
-      // Simpan pesan
       const { error } = await supabase
         .from('messages')
         .insert([{ sender, content, image_url: imageUrl }])
 
       if (error) {
-        console.error(error)
-        alert('Gagal kirim')
+        console.error('Send error:', error)
+        alert('Gagal kirim pesan')
       } else {
         document.getElementById('message').value = ''
         document.getElementById('image').value = ''
       }
     }
 
-    // === Hapus Semua Chat (Hanya Admin) ===
+    // === Hapus Semua Chat (Admin) ===
     async function clearAll() {
       const key = sessionStorage.getItem('chatKey')
-      const { data } = await supabase
+      const { data, error: fetchError } = await supabase
         .from('access_keys')
         .select('key')
         .eq('id', 1)
         .single()
 
-      if (!key || data.key !== key) {
-        return alert('Akses ditolak')
+      if (fetchError || !data || data.key !== key) {
+        return alert('Akses ditolak - kode salah')
       }
 
       if (confirm('Yakin hapus semua chat?')) {
         const { error } = await supabase.rpc('truncate_messages')
-        if (error) console.error(error)
+        if (error) {
+          console.error('Clear error:', error)
+          return alert('Gagal hapus')
+        }
         messagesEl.innerHTML = ''
       }
     }
-
-    // === Fungsi untuk hapus semua pesan (RPC) ===
-    // Jalankan SQL ini di Supabase:
-    /*
-    CREATE OR REPLACE FUNCTION truncate_messages()
-    RETURNS void AS $$
-    BEGIN
-      DELETE FROM messages;
-    END;
-    $$ LANGUAGE plpgsql SECURITY DEFINER;
-    */
   </script>
 </body>
 </html>
