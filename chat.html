@@ -291,11 +291,14 @@
     // ✅ Fix: Hapus spasi di URL dan Key
     const supabaseUrl = 'https://owjmllybdtpdkmmgevap.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im93am1sbHliZHRwZGttbWdldmFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYyMzU5NTIsImV4cCI6MjA3MTgxMTk1Mn0.q9Vnz1vXyUZdiQM6Sb-BwR4Whg3V3-5AptQtfU7M4hQ';
+
+    // ✅ Inisialisasi Supabase dengan benar
     const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
     let currentUser = null;
     let pollingInterval = null;
 
+    // Suara
     const explosionSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2030/2030-preview.mp3');
     const clickSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2527/2527-preview.mp3');
     explosionSound.preload = 'auto';
@@ -390,7 +393,6 @@
       }
     });
 
-    // ✅ Fix: Tambahkan ID dan tombol hapus untuk admin
     async function loadMessages() {
       if (!currentUser) return;
 
@@ -436,7 +438,7 @@
           div.appendChild(img);
         }
 
-        // ✅ Tambahkan tombol hapus hanya untuk admin
+        // Tombol hapus hanya untuk admin
         if (isAdmin) {
           const deleteBtn = document.createElement('button');
           deleteBtn.innerHTML = '❌';
@@ -471,7 +473,7 @@
       pollingInterval = setInterval(loadMessages, 3000);
     }
 
-    // Cek session
+    // Cek session saat halaman dimuat
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) {
         currentUser = data.session.user;
@@ -482,6 +484,7 @@
       }
     });
 
+    // Dengarkan perubahan auth
     supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
         if (pollingInterval) clearInterval(pollingInterval);
@@ -659,6 +662,17 @@
       }, 1000);
 
       requestAnimationFrame(animate);
+
+      // Mouse interaksi
+      canvas.addEventListener('mousemove', (e) => {
+        mouse.x = e.x;
+        mouse.y = e.y;
+      });
+
+      canvas.addEventListener('mouseleave', () => {
+        mouse.x = undefined;
+        mouse.y = undefined;
+      });
     });
   </script>
 </body>
