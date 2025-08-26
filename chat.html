@@ -94,9 +94,13 @@
       transition: background 0.3s;
     }
 
+    #login-screen button:hover {
+      background: #1976d2;
+    }
+
     #chat-container {
       position: relative;
-      max-width: 100%;
+      max-width: 600px;
       width: 95%;
       height: 90vh;
       margin: 20px auto;
@@ -152,19 +156,6 @@
       font-weight: 600;
     }
 
-    .delete-btn {
-      position: absolute;
-      top: 4px;
-      right: 8px;
-      background: none;
-      border: none;
-      color: red;
-      font-size: 16px;
-      cursor: pointer;
-      opacity: 0.7;
-      transition: opacity 0.2s;
-    }
-
     .message img {
       max-width: 180px;
       border-radius: 10px;
@@ -191,6 +182,11 @@
       background: #f9f9fb;
     }
 
+    #message-input:focus {
+      border-color: #1e88e5;
+      background: white;
+    }
+
     #input-area button {
       padding: 0 16px;
       background: #1e88e5;
@@ -200,6 +196,10 @@
       cursor: pointer;
       font-weight: 600;
       font-size: 14px;
+    }
+
+    #input-area button:hover {
+      background: #1976d2;
     }
 
     #file-input {
@@ -218,6 +218,12 @@
       font-size: 14px;
       cursor: pointer;
       z-index: 5;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      transition: background 0.3s;
+    }
+
+    .logout-btn:hover {
+      background: #c62828;
     }
 
     .footer-note {
@@ -227,17 +233,15 @@
       color: #999;
     }
 
-    /* Fix untuk HP kecil */
     @media (max-width: 480px) {
       #text-effect { font-size: 40px; }
       .message { max-width: 80%; }
-      #login-screen h2 { font-size: 24px; }
     }
   </style>
 </head>
 <body>
 
-  <!-- Canvas Partikel (non-aktif di HP jika lambat) -->
+  <!-- Canvas Partikel -->
   <canvas id="particle-canvas"></canvas>
 
   <!-- Teks Animasi -->
@@ -265,141 +269,132 @@
   </div>
 
   <!-- Supabase JS -->
-  <!-- Supabase JS -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const supabaseUrl = 'https://owjmllybdtpdkmmgevap.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im93am1sbHliZHRwZGttbWdldmFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYyMzU5NTIsImV4cCI6MjA3MTgxMTk1Mn0.q9Vnz1vXyUZdiQM6Sb-BwR4Whg3V3-5AptQtfU7M4hQ';
+    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-<!-- Deklarasi variabel global dulu -->
-<script>
-  let supabase;
-  let currentUser = null;
-  let pollingInterval = null;
+    let currentUser = null;
+    let pollingInterval = null; // Simpan interval untuk bisa di-clear
 
-  // Fungsi global: HARUS di sini agar HTML bisa panggil
-  function signIn() {
-    if (!supabase) {
-      alert("Supabase belum siap, coba lagi.");
-      return;
+    // ✅ Fix 1: Gunakan suara yang lebih umum didukung (MP3 dengan format .mp3)
+    // Kita ganti ke suara dari mixkit yang lebih stabil
+    const explosionSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2030/2030-preview.mp3');
+    const clickSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2527/2527-preview.mp3');
+
+    // Pra-load suara (opsional)
+    explosionSound.preload = 'auto';
+    clickSound.preload = 'auto';
+
+    // Mainkan suara dengan pengecekan
+    function playExplosion() {
+      explosionSound.currentTime = 0;
+      explosionSound.play().catch(e => console.log("Suara ledakan tidak bisa diputar:", e));
     }
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
 
-    if (!email || !password) {
-      alert('Email dan password harus diisi');
-      return;
+    function playClick() {
+      clickSound.currentTime = 0;
+      clickSound.play().catch(e => console.log("Suara klik tidak bisa diputar:", e));
     }
 
-    supabase.auth.signInWithPassword({ email, password })
-      .then(({ data, error }) => {
-        if (error) {
-          alert('Gagal login: ' + error.message);
+    // Fungsi Logout
+    async function signOut() {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+      }
+      await supabase.auth.signOut();
+      document.getElementById('chat-container').style.display = 'none';
+      document.getElementById('login-screen').style.display = 'flex';
+      currentUser = null;
+    }
+
+    // Login
+    async function signIn() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      if (!email || !password) {
+        alert('Email dan password harus diisi');
+        return;
+      }
+
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        alert('Gagal login: ' + error.message);
+        return;
+      }
+
+      currentUser = data.user;
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('chat-container').style.display = 'block';
+      loadMessages();
+      startPolling();
+    }
+
+    // Kirim Pesan
+    async function sendMessage() {
+      if (!currentUser) return;
+
+      const input = document.getElementById('message-input');
+      const fileInput = document.getElementById('file-input');
+      const content = input.value.trim();
+      let imageUrl = null;
+
+      if (fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        const fileName = `chat-${Date.now()}-${file.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from('chat-images')
+          .upload(fileName, file);
+
+        if (uploadError) {
+          alert('Gagal upload gambar');
           return;
         }
 
-        currentUser = data.user;
-        document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('chat-container').style.display = 'flex';
-        loadMessages();
-        startPolling();
-        playClick();
+        const { data } = supabase.storage.from('chat-images').getPublicUrl(fileName);
+        imageUrl = data.publicUrl;
+      }
+
+      if (!content && !imageUrl) return;
+
+      const { error } = await supabase.from('messages').insert({
+        sender: currentUser.email,
+        content,
+        image_url: imageUrl
       });
-  }
 
-  function signOut() {
-    if (pollingInterval) clearInterval(pollingInterval);
-    supabase.auth.signOut();
-    document.getElementById('chat-container').style.display = 'none';
-    document.getElementById('login-screen').style.display = 'flex';
-    currentUser = null;
-  }
-
-  function sendMessage() {
-    if (!currentUser || !supabase) return;
-
-    const input = document.getElementById('message-input');
-    const fileInput = document.getElementById('file-input');
-    const content = input.value.trim();
-    let imageUrl = null;
-
-    if (fileInput.files.length > 0) {
-      const file = fileInput.files[0];
-      const fileName = `chat-${Date.now()}-${file.name}`;
-      supabase.storage
-        .from('chat-images')
-        .upload(fileName, file)
-        .then(({ error: uploadError }) => {
-          if (uploadError) {
-            alert('Gagal upload gambar');
-            return;
-          }
-
-          const { data } = supabase.storage.from('chat-images').getPublicUrl(fileName);
-          imageUrl = data.publicUrl;
-          sendToDB(content, imageUrl);
-        });
-    } else {
-      sendToDB(content, null);
-    }
-  }
-
-  function sendToDB(content, imageUrl) {
-    supabase.from('messages').insert([{
-      sender: currentUser.email,
-      content,
-      image_url: imageUrl
-    }])
-    .then(({ error }) => {
       if (error) {
         alert('Gagal kirim pesan');
         return;
       }
-      document.getElementById('message-input').value = '';
-      document.getElementById('file-input').value = '';
+
+      input.value = '';
+      fileInput.value = '';
       loadMessages();
+    }
+
+    // Enter untuk kirim
+    document.getElementById('message-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
     });
-  }
 
-  // Fungsi play global
-  let explosionSound, clickSound;
-
-  function playExplosion() {
-    if (explosionSound) {
-      explosionSound.currentTime = 0;
-      explosionSound.play().catch(() => {});
-    }
-  }
-
-  function playClick() {
-    if (clickSound) {
-      clickSound.currentTime = 0;
-      clickSound.play().catch(() => {});
-    }
-  }
-</script>
-
-<!-- Inisialisasi Supabase setelah load -->
-<script>
-  window.addEventListener('load', () => {
-    const { createClient } = window.supabase.default || window.supabase;
-
-    const supabaseUrl = 'https://owjmllybdtpdkmmgevap.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im93am1sbHliZHRwZGttbWdldmFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYyMzU5NTIsImV4cCI6MjA3MTgxMTk1Mn0.q9Vnz1vXyUZdiQM6Sb-BwR4Whg3V3-5AptQtfU7M4hQ';
-
-    // Assign ke variabel global
-    supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Inisialisasi suara
-    explosionSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2030/2030-preview.mp3');
-    clickSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2527/2527-preview.mp3');
-    explosionSound.preload = 'auto';
-    clickSound.preload = 'auto';
-
-    // Load messages
+    // Load Pesan
     async function loadMessages() {
-      if (!currentUser) return;
+      // ✅ Cek: apakah user sudah login
+      if (!currentUser) {
+        console.log("Belum login, skip loadMessages");
+        return;
+      }
 
       const { data, error } = await supabase
         .from('messages')
-        .select('id, sender, content, image_url, inserted_at')
+        .select('sender, content, image_url, inserted_at')
         .order('inserted_at', { ascending: true });
 
       if (error) {
@@ -410,19 +405,17 @@
       const messagesEl = document.getElementById('messages');
       messagesEl.innerHTML = '';
 
-      const isAdmin = currentUser.email === 'admin@gmail.com';
-
       data.forEach(msg => {
+        // ✅ Cek null atau undefined
         if (!msg.sender) return;
 
         const isMe = msg.sender === currentUser.email;
         const div = document.createElement('div');
         div.className = `message ${isMe ? 'sent' : 'received'}`;
-        div.style.position = 'relative';
 
         const username = document.createElement('div');
         username.className = 'username-display';
-        username.textContent = isMe ? 'Kamu' : (msg.sender === 'admin@gmail.com' ? 'Admin' : 'Pasangan');
+        username.textContent = isMe ? 'Kamu' : 'Pasangan';
         div.appendChild(username);
 
         if (msg.content) {
@@ -439,42 +432,30 @@
           div.appendChild(img);
         }
 
-        if (isAdmin) {
-          const deleteBtn = document.createElement('button');
-          deleteBtn.innerHTML = '❌';
-          deleteBtn.title = 'Hapus pesan';
-          deleteBtn.className = 'delete-btn';
-          deleteBtn.onclick = (e) => {
-            e.stopPropagation();
-            if (confirm('Hapus pesan ini?')) {
-              supabase.from('messages').delete().eq('id', msg.id).then(() => loadMessages());
-            }
-          };
-          div.appendChild(deleteBtn);
-        }
-
         messagesEl.appendChild(div);
       });
 
       messagesEl.scrollTop = messagesEl.scrollHeight;
     }
 
+    // Polling
     function startPolling() {
       if (pollingInterval) clearInterval(pollingInterval);
       pollingInterval = setInterval(loadMessages, 3000);
     }
 
-    // Cek session otomatis
+    // Cek session saat halaman dimuat
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) {
         currentUser = data.session.user;
         document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('chat-container').style.display = 'flex';
+        document.getElementById('chat-container').style.display = 'block';
         loadMessages();
         startPolling();
       }
     });
 
+    // Optional: Dengarkan perubahan auth (misal logout dari tab lain)
     supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
         if (pollingInterval) clearInterval(pollingInterval);
@@ -483,10 +464,9 @@
         currentUser = null;
       }
     });
-  });
-</script>
+  </script>
 
-  <!-- Particles JS (dioptimalkan) -->
+  <!-- Particles JS (Inline) -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const canvas = document.getElementById('particle-canvas');
@@ -501,6 +481,8 @@
       let formingText = false;
       let textFormed = false;
       let explosionDone = false;
+
+      let mouse = { x: undefined, y: undefined, radius: 150 };
 
       class Particle {
         constructor(x, y, color = 'orange', size = 2) {
@@ -540,8 +522,27 @@
             this.x += this.speedX * dtFactor;
             this.y += this.speedY * dtFactor;
           } else {
-            this.x += (Math.random() - 0.5) * 0.5 * dtFactor;
-            this.y += (Math.random() - 0.5) * 0.5 * dtFactor;
+            if (mouse.x && mouse.y) {
+              const dx = mouse.x - this.x;
+              const dy = mouse.y - this.y;
+              const distance = Math.sqrt(dx * dx + dy * dy);
+              if (distance < mouse.radius) {
+                const force = (mouse.radius - distance) / mouse.radius;
+                const strength = (1 - force) * 3;
+                this.speedX -= dx * force * 0.06 * strength * dtFactor;
+                this.speedY -= dy * force * 0.06 * strength * dtFactor;
+              }
+            }
+
+            this.speedX += (Math.random() - 0.5) * 0.2 * dtFactor;
+            this.speedY += (Math.random() - 0.5) * 0.2 * dtFactor;
+
+            const maxSpeed = 4;
+            this.speedX = Math.max(-maxSpeed, Math.min(maxSpeed, this.speedX));
+            this.speedY = Math.max(-maxSpeed, Math.min(maxSpeed, this.speedY));
+
+            this.x += this.speedX * dtFactor;
+            this.y += this.speedY * dtFactor;
 
             if (this.x < 0) this.x = canvas.width;
             if (this.x > canvas.width) this.x = 0;
@@ -575,11 +576,13 @@
           }
         }
 
-        for (let i = 0; i < 150; i++) {
+        textParticles.sort(() => Math.random() - 0.5);
+
+        for (let i = 0; i < 300; i++) {
           const x = Math.random() * canvas.width * 3 - canvas.width;
           const y = Math.random() * canvas.height * 3 - canvas.height;
           const hue = Math.random() * 20 + 20;
-          const size = Math.random() * 3 + 1;
+          const size = Math.random() * 4 + 1;
           particles.push(new Particle(x, y, `hsl(${hue}, 100%, 65%)`, size));
         }
       }
@@ -606,7 +609,7 @@
           if (allClose && !explosionDone) {
             textFormed = true;
             textElement.style.opacity = 1;
-            playExplosion();
+            playExplosion(); // Suara ledakan
             explosionDone = true;
           }
         }
@@ -627,7 +630,7 @@
           particles[i].originX = textParticles[i].x;
           particles[i].originY = textParticles[i].y;
         }
-      }, 1500);
+      }, 1000);
 
       requestAnimationFrame(animate);
     });
