@@ -1,0 +1,23 @@
+<!-- auth/callback.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Auth Callback</title>
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+
+    const supabase = createClient(
+      'https://szshmnxuafjnisspzzxz.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6c2htbnh1YWZqbmlzc3B6enh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5NTM5NzAsImV4cCI6MjA3MTUyOTk3MH0.3Yiqz7KE6Q4bQAUp5aBsnrmwoiWF1IF7cborKyJ4kDA'
+    )
+
+    // Otomatis tangkap session dari URL
+    window.addEventListener('load', async () => {
+      await supabase.auth.getSession()
+      // Setelah login, kembali ke halaman utama
+      window.location.href = '/'
+    })
+  </script>
+</head>
+<body>Sedang login...</body>
+</html>
