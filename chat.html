@@ -82,63 +82,37 @@
       font-size: 14px;
       font-weight: 600;
     }
-    .user-btn {
-      display: block;
-      width: 80%;
-      max-width: 300px;
-      margin: 10px auto;
-      padding: 12px;
-      background: #f0f2f5;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      text-align: center;
-      cursor: pointer;
-      transition: 0.2s;
-    }
-    .user-btn:hover {
-      background: #e9ecef;
-      transform: translateY(-1px);
+    #file-input {
+      display: none;
     }
     #login-screen {
       text-align: center;
-      padding: 40px 20px;
+      padding: 60px 20px;
     }
     #login-screen h2 {
       color: #1e88e5;
-      margin-bottom: 20px;
     }
-    #header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 20px;
-      background: #1e88e5;
-      color: white;
-      font-size: 16px;
-    }
-    #header button {
-      background: white;
-      color: #1e88e5;
-      padding: 6px 12px;
-      font-size: 12px;
+    input[type="email"], input[type="password"] {
+      padding: 12px;
+      width: 250px;
+      margin: 8px 0;
+      border: 1px solid #ccc;
+      border-radius: 6px;
     }
   </style>
 </head>
 <body>
 
-  <!-- Layar Login: Daftar User -->
+  <!-- Layar Login -->
   <div id="login-screen">
     <h2>💬 Chat Pribadi</h2>
-    <p>Pilih akun untuk masuk:</p>
-    <div id="user-list"></div>
+    <input type="email" id="email" placeholder="Email kamu" /><br>
+    <input type="password" id="password" placeholder="Password" /><br>
+    <button onclick="signIn()">Masuk</button>
   </div>
 
   <!-- Area Chat -->
   <div id="chat-container" style="display: none;">
-    <div id="header">
-      <span> chatting </span>
-      <button onclick="signOut()">Keluar</button>
-    </div>
     <div id="messages"></div>
     <div id="input-area">
       <input type="text" id="message-input" placeholder="Ketik pesan..." />
@@ -154,116 +128,31 @@
   <!-- Load Supabase JS (TANPA SPASI!) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-    // ✅ Fix URL & Key (tanpa spasi!)
+    // ✅ Fix: Hilangkan spasi di URL
     const supabaseUrl = 'https://owjmllybdtpdkmmgevap.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im93am1sbHliZHRwZGttbWdldmFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYyMzU5NTIsImV4cCI6MjA3MTgxMTk1Mn0.q9Vnz1vXyUZdiQM6Sb-BwR4Whg3V3-5AptQtfU7M4hQ';
     
-    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+    // ✅ Inisialisasi benar
+    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
     let currentUser = null;
 
-    // Ambil daftar user dari auth.users (hanya email yang aktif)
-    async function loadUserList() {
-      const { data, error } = await supabase
-        .from('auth.users')
-        .select('id, email')
-        .not('email', 'is', null);
+    // Login
+    async function signIn() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
 
-      if (error) {
-        console.error('Gagal ambil daftar user:', error);
-        document.getElementById('user-list').innerHTML = '<p>Error loading users.</p>';
-        return;
-      }
-
-      const userList = document.getElementById('user-list');
-      userList.innerHTML = '';
-
-      data.forEach(user => {
-        const btn = document.createElement('button');
-        btn.className = 'user-btn';
-        btn.textContent = user.email;
-        btn.onclick = () => signInAs(user.email);
-        userList.appendChild(btn);
-      });
-    }
-
-    // Login langsung via email (no password)
-    async function signInAs(email) {
-      const { data, error } = await supabase.auth.signInWithOtp({
-        email: email,
-        options: { emailRedirectTo: window.location.origin } // tidak digunakan, kita pakai session langsung
-      });
-
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         alert('Gagal login: ' + error.message);
         return;
       }
 
-      // Karena kita tidak butuh OTP, kita gunakan "magic link", TAPI: untuk development, kita pakai cara cepat:
-      // Gunakan signInAnonymously? Tidak. Alternatif: gunakan signInWithPassword? Tidak.
-
-      // Solusi: Kita pakai **signInWithOtp** tapi tidak kirim email, hanya untuk set session.
-      // TAPI: lebih mudah: kita pakai **signInAnonymously** tidak cocok.
-
-      // Jadi, kita ganti strategi: **Gunakan signInWithPassword** tapi kita simpan password di kode? Tidak aman.
-
-      // ✅ Solusi TERBAIK untuk kasus ini: **Gunakan signInAnonymously + simpan identitas di metadata**
-      // TAPI: kamu mau login sebagai user tertentu → maka kita harus pakai **email + password**.
-
-      // Karena ini hanya 2 user, kita bisa hardcode password? Tidak disarankan.
-
-      // 🔁 Kita kembali ke **login manual dulu**, atau:
-      // ✅ Pakai **Sign in with OAuth atau Link** → tapi butuh email.
-
-      // Alternatif: **Gunakan custom login via stored procedure** → terlalu kompleks.
-
-      // ✅ JADI: Kita ganti ke **login dengan password otomatis jika tahu password**.
-
-      // Tapi karena kamu ingin **klik langsung masuk**, satu-satunya cara aman:
-      // → **Gunakan Sign-in with Link (magic link)** dan kirim ke email, TAPI:
-      // → Untuk demo lokal, kita tidak bisa.
-
-      // 🚀 SOLUSI SEDERHANA UNTUK KAMU:
-      // Gunakan **signInAnonymously** tidak cocok.
-      // Maka kita tetap pakai **signInWithPassword**, tapi kita **hardcode password** untuk user yang kamu tahu.
-
-      // HANYA UNTUK KAMU & PASANGAN — jangan untuk publik.
-
-      const knownPasswords = {
-        'kamu@email.com': 'passwordkamu123',
-        'pasangan@email.com': 'passwordpasangan123'
-        // tambahkan sesuai email yang kamu daftarkan
-      };
-
-      const password = knownPasswords[email];
-      if (!password) {
-        alert('Password tidak diketahui untuk email ini.');
-        return;
-      }
-
-      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (loginError) {
-        alert('Gagal login: ' + loginError.message);
-        return;
-      }
-
-      currentUser = loginData.user;
+      currentUser = data.user;
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('chat-container').style.display = 'block';
       loadMessages();
       startPolling();
-    }
-
-    // Logout
-    async function signOut() {
-      await supabase.auth.signOut();
-      document.getElementById('chat-container').style.display = 'none';
-      document.getElementById('login-screen').style.display = 'block';
-      currentUser = null;
     }
 
     // Load pesan
@@ -288,7 +177,7 @@
 
         const username = document.createElement('div');
         username.className = 'username-display';
-        username.textContent = isMe ? 'Kamu' : 'Pasangan';
+        username.textContent = msg.sender === currentUser.email ? 'Kamu' : 'Pasangan';
         div.appendChild(username);
 
         if (msg.content) {
@@ -317,6 +206,7 @@
       const content = input.value.trim();
       let imageUrl = null;
 
+      // Upload gambar jika ada
       if (fileInput.files.length > 0) {
         const file = fileInput.files[0];
         const fileName = `chat-${Date.now()}-${file.name}`;
@@ -330,6 +220,7 @@
           return;
         }
 
+        // Dapatkan public URL
         const { data } = supabase.storage.from('chat-images').getPublicUrl(fileName);
         imageUrl = data.publicUrl;
       }
@@ -347,13 +238,14 @@
         return;
       }
 
+      // Reset
       input.value = '';
       fileInput.value = '';
       loadMessages();
     }
 
     // Enter untuk kirim
-    document.getElementById('message-input')?.addEventListener('keydown', (e) => {
+    document.getElementById('message-input').addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         sendMessage();
@@ -365,7 +257,7 @@
       setInterval(loadMessages, 3000);
     }
 
-    // Cek session saat load
+    // Cek session
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) {
         currentUser = data.session.user;
@@ -373,8 +265,6 @@
         document.getElementById('chat-container').style.display = 'block';
         loadMessages();
         startPolling();
-      } else {
-        loadUserList(); // tampilkan daftar user
       }
     });
   </script>
