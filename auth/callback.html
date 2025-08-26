@@ -1,8 +1,8 @@
-<!-- auth/callback.html -->
 <!DOCTYPE html>
 <html>
 <head>
   <title>Auth Callback</title>
+  <meta charset="UTF-8" />
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
@@ -11,13 +11,21 @@
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6c2htbnh1YWZqbmlzc3B6enh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5NTM5NzAsImV4cCI6MjA3MTUyOTk3MH0.3Yiqz7KE6Q4bQAUp5aBsnrmwoiWF1IF7cborKyJ4kDA'
     )
 
-    // Otomatis tangkap session dari URL
     window.addEventListener('load', async () => {
-      await supabase.auth.getSession()
-      // Setelah login, kembali ke halaman utama
-      window.location.href = '/'
+      // Tangkap session dari URL (setelah login Google)
+      const { error } = await supabase.auth.getSessionFromUrl()
+
+      if (error) {
+        console.error('Auth callback error:', error)
+        alert('Login gagal: ' + error.message)
+      } else {
+        // Redirect ke halaman utama setelah login sukses
+        window.location.href = '/'
+      }
     })
   </script>
 </head>
-<body>Sedang login...</body>
+<body style="text-align: center; padding: 50px;">
+  <p>Sedang memproses login...</p>
+</body>
 </html>
