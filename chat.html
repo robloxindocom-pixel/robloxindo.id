@@ -276,9 +276,34 @@
     const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
     let currentUser = null;
+    let pollingInterval = null; // Simpan interval untuk bisa di-clear
+
+    // ✅ Fix 1: Gunakan suara yang lebih umum didukung (MP3 dengan format .mp3)
+    // Kita ganti ke suara dari mixkit yang lebih stabil
+    const explosionSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2030/2030-preview.mp3');
+    const clickSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2527/2527-preview.mp3');
+
+    // Pra-load suara (opsional)
+    explosionSound.preload = 'auto';
+    clickSound.preload = 'auto';
+
+    // Mainkan suara dengan pengecekan
+    function playExplosion() {
+      explosionSound.currentTime = 0;
+      explosionSound.play().catch(e => console.log("Suara ledakan tidak bisa diputar:", e));
+    }
+
+    function playClick() {
+      clickSound.currentTime = 0;
+      clickSound.play().catch(e => console.log("Suara klik tidak bisa diputar:", e));
+    }
 
     // Fungsi Logout
     async function signOut() {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+      }
       await supabase.auth.signOut();
       document.getElementById('chat-container').style.display = 'none';
       document.getElementById('login-screen').style.display = 'flex';
@@ -310,6 +335,8 @@
 
     // Kirim Pesan
     async function sendMessage() {
+      if (!currentUser) return;
+
       const input = document.getElementById('message-input');
       const fileInput = document.getElementById('file-input');
       const content = input.value.trim();
@@ -359,6 +386,12 @@
 
     // Load Pesan
     async function loadMessages() {
+      // ✅ Cek: apakah user sudah login
+      if (!currentUser) {
+        console.log("Belum login, skip loadMessages");
+        return;
+      }
+
       const { data, error } = await supabase
         .from('messages')
         .select('sender, content, image_url, inserted_at')
@@ -373,6 +406,9 @@
       messagesEl.innerHTML = '';
 
       data.forEach(msg => {
+        // ✅ Cek null atau undefined
+        if (!msg.sender) return;
+
         const isMe = msg.sender === currentUser.email;
         const div = document.createElement('div');
         div.className = `message ${isMe ? 'sent' : 'received'}`;
@@ -404,10 +440,11 @@
 
     // Polling
     function startPolling() {
-      setInterval(loadMessages, 3000);
+      if (pollingInterval) clearInterval(pollingInterval);
+      pollingInterval = setInterval(loadMessages, 3000);
     }
 
-    // Cek session
+    // Cek session saat halaman dimuat
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) {
         currentUser = data.session.user;
@@ -415,6 +452,16 @@
         document.getElementById('chat-container').style.display = 'block';
         loadMessages();
         startPolling();
+      }
+    });
+
+    // Optional: Dengarkan perubahan auth (misal logout dari tab lain)
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        if (pollingInterval) clearInterval(pollingInterval);
+        document.getElementById('chat-container').style.display = 'none';
+        document.getElementById('login-screen').style.display = 'flex';
+        currentUser = null;
       }
     });
   </script>
@@ -436,37 +483,6 @@
       let explosionDone = false;
 
       let mouse = { x: undefined, y: undefined, radius: 150 };
-
-      const explosionSound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-whoosh-whoosh-3000.mp3');
-      const clickSound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-small-impact-674.mp3');
-
-      explosionSound.preload = 'auto';
-      clickSound.preload = 'auto';
-
-      function playExplosion() {
-        explosionSound.currentTime = 0;
-        explosionSound.play().catch(e => console.log("Suara ledakan diblokir:", e));
-      }
-
-      function playClick() {
-        clickSound.currentTime = 0;
-        clickSound.play().catch(e => console.log("Suara klik diblokir:", e));
-      }
-
-      window.addEventListener('mousemove', (e) => {
-        mouse.x = e.x;
-        mouse.y = e.y;
-      });
-
-      window.addEventListener('click', (e) => {
-        playClick();
-        for (let i = 0; i < 15; i++) {
-          const hue = Math.random() * 20 + 20;
-          const color = `hsl(${hue}, 100%, 65%)`;
-          const size = Math.random() * 3 + 1;
-          particles.push(new Particle(e.x, e.y, color, size));
-        }
-      });
 
       class Particle {
         constructor(x, y, color = 'orange', size = 2) {
@@ -593,7 +609,7 @@
           if (allClose && !explosionDone) {
             textFormed = true;
             textElement.style.opacity = 1;
-            playExplosion();
+            playExplosion(); // Suara ledakan
             explosionDone = true;
           }
         }
