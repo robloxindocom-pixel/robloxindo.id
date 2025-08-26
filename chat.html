@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Chat Pribadi</title>
   <style>
     * {
@@ -14,8 +14,8 @@
     body {
       font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
       background: #f0f2f5;
-      overflow: hidden;
-      height: 100vh;
+      overflow-y: auto;
+      height: 100%;
       position: relative;
     }
 
@@ -55,6 +55,7 @@
       background: rgba(255, 255, 255, 0.2);
       backdrop-filter: blur(10px);
       z-index: 10;
+      position: relative;
     }
 
     #login-screen h2 {
@@ -102,7 +103,7 @@
       position: relative;
       max-width: 600px;
       width: 95%;
-      height: 90vh;
+      height: 90dvh;
       margin: 20px auto;
       background: white;
       border-radius: 16px;
@@ -110,6 +111,7 @@
       overflow: hidden;
       display: none;
       flex-direction: column;
+      z-index: 10;
     }
 
     #messages {
@@ -180,6 +182,7 @@
       outline: none;
       font-size: 16px;
       background: #f9f9fb;
+      z-index: 2;
     }
 
     #message-input:focus {
@@ -276,18 +279,15 @@
     const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
     let currentUser = null;
-    let pollingInterval = null; // Simpan interval untuk bisa di-clear
+    let pollingInterval = null;
 
-    // ✅ Fix 1: Gunakan suara yang lebih umum didukung (MP3 dengan format .mp3)
-    // Kita ganti ke suara dari mixkit yang lebih stabil
+    // Suara
     const explosionSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2030/2030-preview.mp3');
     const clickSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2527/2527-preview.mp3');
 
-    // Pra-load suara (opsional)
     explosionSound.preload = 'auto';
     clickSound.preload = 'auto';
 
-    // Mainkan suara dengan pengecekan
     function playExplosion() {
       explosionSound.currentTime = 0;
       explosionSound.play().catch(e => console.log("Suara ledakan tidak bisa diputar:", e));
@@ -298,7 +298,7 @@
       clickSound.play().catch(e => console.log("Suara klik tidak bisa diputar:", e));
     }
 
-    // Fungsi Logout
+    // Logout
     async function signOut() {
       if (pollingInterval) {
         clearInterval(pollingInterval);
@@ -329,6 +329,11 @@
       currentUser = data.user;
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('chat-container').style.display = 'block';
+      
+      // Fokus ke input setelah login
+      const messageInput = document.getElementById('message-input');
+      messageInput.focus();
+      
       loadMessages();
       startPolling();
     }
@@ -386,11 +391,7 @@
 
     // Load Pesan
     async function loadMessages() {
-      // ✅ Cek: apakah user sudah login
-      if (!currentUser) {
-        console.log("Belum login, skip loadMessages");
-        return;
-      }
+      if (!currentUser) return;
 
       const { data, error } = await supabase
         .from('messages')
@@ -406,7 +407,6 @@
       messagesEl.innerHTML = '';
 
       data.forEach(msg => {
-        // ✅ Cek null atau undefined
         if (!msg.sender) return;
 
         const isMe = msg.sender === currentUser.email;
@@ -450,12 +450,13 @@
         currentUser = data.session.user;
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('chat-container').style.display = 'block';
+        document.getElementById('message-input').focus();
         loadMessages();
         startPolling();
       }
     });
 
-    // Optional: Dengarkan perubahan auth (misal logout dari tab lain)
+    // Dengarkan perubahan auth
     supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
         if (pollingInterval) clearInterval(pollingInterval);
@@ -466,7 +467,7 @@
     });
   </script>
 
-  <!-- Particles JS (Inline) -->
+  <!-- Particles JS -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const canvas = document.getElementById('particle-canvas');
@@ -609,7 +610,7 @@
           if (allClose && !explosionDone) {
             textFormed = true;
             textElement.style.opacity = 1;
-            playExplosion(); // Suara ledakan
+            playExplosion();
             explosionDone = true;
           }
         }
