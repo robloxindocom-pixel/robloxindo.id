@@ -286,214 +286,215 @@
   </div>
 
   <!-- Supabase JS -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    // ✅ Fix: Hapus spasi di URL dan Key
-    const supabaseUrl = 'https://owjmllybdtpdkmmgevap.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im93am1sbHliZHRwZGttbWdldmFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYyMzU5NTIsImV4cCI6MjA3MTgxMTk1Mn0.q9Vnz1vXyUZdiQM6Sb-BwR4Whg3V3-5AptQtfU7M4hQ';
+<!-- Supabase JS -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  // ✅ Fix: Ambil createClient dari supabase.default
+  const { createClient } = window.supabase;
 
-    // ✅ Inisialisasi Supabase dengan benar
-    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+  const supabaseUrl = 'https://owjmllybdtpdkmmgevap.supabase.co';
+  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im93am1sbHliZHRwZGttbWdldmFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYyMzU5NTIsImV4cCI6MjA3MTgxMTk1Mn0.q9Vnz1vXyUZdiQM6Sb-BwR4Whg3V3-5AptQtfU7M4hQ';
 
-    let currentUser = null;
-    let pollingInterval = null;
+  // ✅ Inisialisasi client
+  const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Suara
-    const explosionSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2030/2030-preview.mp3');
-    const clickSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2527/2527-preview.mp3');
-    explosionSound.preload = 'auto';
-    clickSound.preload = 'auto';
+  let currentUser = null;
+  let pollingInterval = null;
 
-    function playExplosion() {
-      explosionSound.currentTime = 0;
-      explosionSound.play().catch(e => console.log("Suara ledakan:", e));
+  // ✅ Pindahkan deklarasi Audio ke atas
+  const explosionSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2030/2030-preview.mp3');
+  const clickSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2527/2527-preview.mp3');
+  explosionSound.preload = 'auto';
+  clickSound.preload = 'auto';
+
+  function playExplosion() {
+    explosionSound.currentTime = 0;
+    explosionSound.play().catch(e => console.log("Suara ledakan:", e));
+  }
+
+  function playClick() {
+    clickSound.currentTime = 0;
+    clickSound.play().catch(e => console.log("Suara klik:", e));
+  }
+
+  async function signOut() {
+    if (pollingInterval) clearInterval(pollingInterval);
+    await supabase.auth.signOut();
+    document.getElementById('chat-container').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'flex';
+    currentUser = null;
+  }
+
+  async function signIn() {
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+
+    if (!email || !password) {
+      alert('Email dan password harus diisi');
+      return;
     }
 
-    function playClick() {
-      clickSound.currentTime = 0;
-      clickSound.play().catch(e => console.log("Suara klik:", e));
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      alert('Gagal login: ' + error.message);
+      return;
     }
 
-    async function signOut() {
-      if (pollingInterval) clearInterval(pollingInterval);
-      await supabase.auth.signOut();
-      document.getElementById('chat-container').style.display = 'none';
-      document.getElementById('login-screen').style.display = 'flex';
-      currentUser = null;
-    }
+    currentUser = data.user;
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('chat-container').style.display = 'block';
+    loadMessages();
+    startPolling();
+  }
 
-    async function signIn() {
-      const email = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value;
+  async function sendMessage() {
+    if (!currentUser) return;
 
-      if (!email || !password) {
-        alert('Email dan password harus diisi');
+    const input = document.getElementById('message-input');
+    const fileInput = document.getElementById('file-input');
+    const content = input.value.trim();
+    let imageUrl = null;
+
+    if (fileInput.files.length > 0) {
+      const file = fileInput.files[0];
+      const fileName = `chat-${Date.now()}-${file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from('chat-images')
+        .upload(fileName, file);
+
+      if (uploadError) {
+        alert('Gagal upload gambar');
         return;
       }
 
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        alert('Gagal login: ' + error.message);
-        return;
+      const { data } = supabase.storage.from('chat-images').getPublicUrl(fileName);
+      imageUrl = data.publicUrl;
+    }
+
+    if (!content && !imageUrl) return;
+
+    const { error } = await supabase.from('messages').insert({
+      sender: currentUser.email,
+      content,
+      image_url: imageUrl
+    });
+
+    if (error) {
+      alert('Gagal kirim pesan');
+      return;
+    }
+
+    input.value = '';
+    fileInput.value = '';
+    loadMessages();
+  }
+
+  document.getElementById('message-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  async function loadMessages() {
+    if (!currentUser) return;
+
+    const { data, error } = await supabase
+      .from('messages')
+      .select('id, sender, content, image_url, inserted_at')
+      .order('inserted_at', { ascending: true });
+
+    if (error) {
+      console.error('Gagal ambil pesan:', error);
+      return;
+    }
+
+    const messagesEl = document.getElementById('messages');
+    messagesEl.innerHTML = '';
+
+    const isAdmin = currentUser.email === 'admin@gmail.com';
+
+    data.forEach(msg => {
+      if (!msg.sender) return;
+
+      const isMe = msg.sender === currentUser.email;
+      const div = document.createElement('div');
+      div.className = `message ${isMe ? 'sent' : 'received'}`;
+      div.style.position = 'relative';
+
+      const username = document.createElement('div');
+      username.className = 'username-display';
+      username.textContent = isMe ? 'Kamu' : (msg.sender === 'admin@gmail.com' ? 'Admin' : 'Pasangan');
+      div.appendChild(username);
+
+      if (msg.content) {
+        const p = document.createElement('div');
+        p.textContent = msg.content;
+        div.appendChild(p);
       }
 
-      currentUser = data.user;
+      if (msg.image_url) {
+        const img = document.createElement('img');
+        img.src = msg.image_url;
+        img.alt = "Foto";
+        img.loading = "lazy";
+        div.appendChild(img);
+      }
+
+      if (isAdmin) {
+        const deleteBtn = document.createElement('button');
+        deleteBtn.innerHTML = '❌';
+        deleteBtn.title = 'Hapus pesan';
+        deleteBtn.className = 'delete-btn';
+        deleteBtn.onclick = async (e) => {
+          e.stopPropagation();
+          if (confirm('Hapus pesan ini?')) {
+            const { error } = await supabase
+              .from('messages')
+              .delete()
+              .eq('id', msg.id);
+
+            if (error) {
+              alert('Gagal menghapus');
+            } else {
+              loadMessages();
+            }
+          }
+        };
+        div.appendChild(deleteBtn);
+      }
+
+      messagesEl.appendChild(div);
+    });
+
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function startPolling() {
+    if (pollingInterval) clearInterval(pollingInterval);
+    pollingInterval = setInterval(loadMessages, 3000);
+  }
+
+  // Cek session
+  supabase.auth.getSession().then(({ data }) => {
+    if (data.session) {
+      currentUser = data.session.user;
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('chat-container').style.display = 'block';
       loadMessages();
       startPolling();
     }
+  });
 
-    async function sendMessage() {
-      if (!currentUser) return;
-
-      const input = document.getElementById('message-input');
-      const fileInput = document.getElementById('file-input');
-      const content = input.value.trim();
-      let imageUrl = null;
-
-      if (fileInput.files.length > 0) {
-        const file = fileInput.files[0];
-        const fileName = `chat-${Date.now()}-${file.name}`;
-        const { error: uploadError } = await supabase.storage
-          .from('chat-images')
-          .upload(fileName, file);
-
-        if (uploadError) {
-          alert('Gagal upload gambar');
-          return;
-        }
-
-        const { data } = supabase.storage.from('chat-images').getPublicUrl(fileName);
-        imageUrl = data.publicUrl;
-      }
-
-      if (!content && !imageUrl) return;
-
-      const { error } = await supabase.from('messages').insert({
-        sender: currentUser.email,
-        content,
-        image_url: imageUrl
-      });
-
-      if (error) {
-        alert('Gagal kirim pesan');
-        return;
-      }
-
-      input.value = '';
-      fileInput.value = '';
-      loadMessages(); // Update langsung
-    }
-
-    document.getElementById('message-input').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
-      }
-    });
-
-    async function loadMessages() {
-      if (!currentUser) return;
-
-      const { data, error } = await supabase
-        .from('messages')
-        .select('id, sender, content, image_url, inserted_at')
-        .order('inserted_at', { ascending: true });
-
-      if (error) {
-        console.error('Gagal ambil pesan:', error);
-        return;
-      }
-
-      const messagesEl = document.getElementById('messages');
-      messagesEl.innerHTML = '';
-
-      const isAdmin = currentUser.email === 'admin@gmail.com';
-
-      data.forEach(msg => {
-        if (!msg.sender) return;
-
-        const isMe = msg.sender === currentUser.email;
-        const div = document.createElement('div');
-        div.className = `message ${isMe ? 'sent' : 'received'}`;
-        div.style.position = 'relative';
-
-        const username = document.createElement('div');
-        username.className = 'username-display';
-        username.textContent = isMe ? 'Kamu' : (msg.sender === 'admin@gmail.com' ? 'Admin' : 'Pasangan');
-        div.appendChild(username);
-
-        if (msg.content) {
-          const p = document.createElement('div');
-          p.textContent = msg.content;
-          div.appendChild(p);
-        }
-
-        if (msg.image_url) {
-          const img = document.createElement('img');
-          img.src = msg.image_url;
-          img.alt = "Foto";
-          img.loading = "lazy";
-          div.appendChild(img);
-        }
-
-        // Tombol hapus hanya untuk admin
-        if (isAdmin) {
-          const deleteBtn = document.createElement('button');
-          deleteBtn.innerHTML = '❌';
-          deleteBtn.title = 'Hapus pesan';
-          deleteBtn.className = 'delete-btn';
-          deleteBtn.onclick = async (e) => {
-            e.stopPropagation();
-            if (confirm('Hapus pesan ini?')) {
-              const { error } = await supabase
-                .from('messages')
-                .delete()
-                .eq('id', msg.id);
-
-              if (error) {
-                alert('Gagal menghapus');
-              } else {
-                loadMessages(); // Refresh
-              }
-            }
-          };
-          div.appendChild(deleteBtn);
-        }
-
-        messagesEl.appendChild(div);
-      });
-
-      messagesEl.scrollTop = messagesEl.scrollHeight;
-    }
-
-    function startPolling() {
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT') {
       if (pollingInterval) clearInterval(pollingInterval);
-      pollingInterval = setInterval(loadMessages, 3000);
+      document.getElementById('chat-container').style.display = 'none';
+      document.getElementById('login-screen').style.display = 'flex';
+      currentUser = null;
     }
-
-    // Cek session saat halaman dimuat
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        currentUser = data.session.user;
-        document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('chat-container').style.display = 'block';
-        loadMessages();
-        startPolling();
-      }
-    });
-
-    // Dengarkan perubahan auth
-    supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') {
-        if (pollingInterval) clearInterval(pollingInterval);
-        document.getElementById('chat-container').style.display = 'none';
-        document.getElementById('login-screen').style.display = 'flex';
-        currentUser = null;
-      }
-    });
-  </script>
+  });
+</script>
 
   <!-- Particles JS -->
   <script>
