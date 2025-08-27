@@ -304,9 +304,10 @@
   <!-- Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
+    // ✅ Pastikan URL dan KEY tidak ada spasi
     const supabaseUrl = 'https://owjmllybdtpdkmmgevap.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im93am1sbHliZHRwZGttbWdldmFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYyMzU5NTIsImV4cCI6MjA3MTgxMTk1Mn0.q9Vnz1vXyUZdiQM6Sb-BwR4Whg3V3-5AptQtfU7M4hQ';
-    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
     let currentUser = null;
     let pollingInterval = null;
@@ -359,8 +360,8 @@
       currentUser = data.user;
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('chat-container').style.display = 'block';
-      
-      // Tampilkan tombol hapus jika admin
+
+      // Tampilkan tombol hapus hanya untuk admin
       const deleteBtn = document.getElementById('delete-all-btn');
       if (currentUser.email === 'admin@gmail.com') {
         deleteBtn.style.display = 'block';
@@ -491,13 +492,18 @@
       const confirmDelete = confirm('Apakah Anda yakin ingin menghapus SEMUA percakapan? Tindakan ini tidak bisa dibatalkan!');
       if (!confirmDelete) return;
 
-      const { error } = await supabase.from('messages').delete().neq('id', null); // Hapus semua
+      // ✅ Perbaikan: Gunakan .not('id', 'is', null)
+      const { error } = await supabase
+        .from('messages')
+        .delete()
+        .not('id', 'is', null);
 
       if (error) {
+        console.error('Error saat hapus:', error);
         alert('Gagal menghapus pesan: ' + error.message);
       } else {
         alert('Semua pesan berhasil dihapus!');
-        loadMessages(); // Refresh tampilan
+        document.getElementById('messages').innerHTML = ''; // Kosongkan tampilan
       }
     }
 
