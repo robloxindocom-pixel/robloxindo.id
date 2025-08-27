@@ -225,6 +225,26 @@
       transition: background 0.3s;
     }
 
+    .delete-all-btn {
+      position: absolute;
+      top: 16px;
+      right: 90px;
+      background: #f44336;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      z-index: 5;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      transition: background 0.3s;
+    }
+
+    .delete-all-btn:hover {
+      background: #d32f2f;
+    }
+
     .logout-btn:hover {
       background: #c62828;
     }
@@ -237,6 +257,13 @@
     }
 
     @media (max-width: 480px) {
+      .logout-btn, .delete-all-btn {
+        font-size: 12px;
+        padding: 6px 10px;
+        right: auto;
+        left: 16px;
+        top: 16px;
+      }
       #text-effect { font-size: 40px; }
       .message { max-width: 80%; }
     }
@@ -261,6 +288,9 @@
   <!-- Area Chat -->
   <div id="chat-container">
     <button class="logout-btn" onclick="signOut()">Keluar</button>
+    <button class="delete-all-btn" id="delete-all-btn" style="display:none;" onclick="deleteAllMessages()">
+      Hapus Semua
+    </button>
     <div id="messages"></div>
     <div id="input-area">
       <input type="text" id="message-input" placeholder="Ketik pesan..." />
@@ -330,7 +360,14 @@
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('chat-container').style.display = 'block';
       
-      // Fokus ke input setelah login
+      // Tampilkan tombol hapus jika admin
+      const deleteBtn = document.getElementById('delete-all-btn');
+      if (currentUser.email === 'admin@gmail.com') {
+        deleteBtn.style.display = 'block';
+      } else {
+        deleteBtn.style.display = 'none';
+      }
+
       const messageInput = document.getElementById('message-input');
       messageInput.focus();
       
@@ -444,12 +481,40 @@
       pollingInterval = setInterval(loadMessages, 3000);
     }
 
+    // Hapus Semua Pesan (Hanya untuk admin@gmail.com)
+    async function deleteAllMessages() {
+      if (currentUser.email !== 'admin@gmail.com') {
+        alert('Akses ditolak!');
+        return;
+      }
+
+      const confirmDelete = confirm('Apakah Anda yakin ingin menghapus SEMUA percakapan? Tindakan ini tidak bisa dibatalkan!');
+      if (!confirmDelete) return;
+
+      const { error } = await supabase.from('messages').delete().neq('id', null); // Hapus semua
+
+      if (error) {
+        alert('Gagal menghapus pesan: ' + error.message);
+      } else {
+        alert('Semua pesan berhasil dihapus!');
+        loadMessages(); // Refresh tampilan
+      }
+    }
+
     // Cek session saat halaman dimuat
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) {
         currentUser = data.session.user;
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('chat-container').style.display = 'block';
+
+        const deleteBtn = document.getElementById('delete-all-btn');
+        if (currentUser.email === 'admin@gmail.com') {
+          deleteBtn.style.display = 'block';
+        } else {
+          deleteBtn.style.display = 'none';
+        }
+
         document.getElementById('message-input').focus();
         loadMessages();
         startPolling();
