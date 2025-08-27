@@ -301,13 +301,19 @@
     <div class="footer-note">Pesan diperbarui otomatis</div>
   </div>
 
-  <!-- Supabase JS -->
+  <!-- ✅ 1. Muat Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- ✅ 2. Inisialisasi variabel dan fungsi setelah Supabase siap -->
   <script>
-    // ✅ Pastikan URL dan KEY tidak ada spasi
+    // ✅ Ambil createClient dari window.supabase
+    const { createClient } = window.supabase;
+
     const supabaseUrl = 'https://owjmllybdtpdkmmgevap.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im93am1sbHliZHRwZGttbWdldmFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYyMzU5NTIsImV4cCI6MjA3MTgxMTk1Mn0.q9Vnz1vXyUZdiQM6Sb-BwR4Whg3V3-5AptQtfU7M4hQ';
-    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+    
+    // ✅ Inisialisasi supabase client
+    const supabase$1 = createClient(supabaseUrl, supabaseKey);
 
     let currentUser = null;
     let pollingInterval = null;
@@ -335,7 +341,7 @@
         clearInterval(pollingInterval);
         pollingInterval = null;
       }
-      await supabase.auth.signOut();
+      await supabase$1.auth.signOut();
       document.getElementById('chat-container').style.display = 'none';
       document.getElementById('login-screen').style.display = 'flex';
       currentUser = null;
@@ -351,7 +357,7 @@
         return;
       }
 
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase$1.auth.signInWithPassword({ email, password });
       if (error) {
         alert('Gagal login: ' + error.message);
         return;
@@ -361,7 +367,6 @@
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('chat-container').style.display = 'block';
 
-      // Tampilkan tombol hapus hanya untuk admin
       const deleteBtn = document.getElementById('delete-all-btn');
       if (currentUser.email === 'admin@gmail.com') {
         deleteBtn.style.display = 'block';
@@ -369,9 +374,7 @@
         deleteBtn.style.display = 'none';
       }
 
-      const messageInput = document.getElementById('message-input');
-      messageInput.focus();
-      
+      document.getElementById('message-input').focus();
       loadMessages();
       startPolling();
     }
@@ -388,7 +391,7 @@
       if (fileInput.files.length > 0) {
         const file = fileInput.files[0];
         const fileName = `chat-${Date.now()}-${file.name}`;
-        const { error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabase$1.storage
           .from('chat-images')
           .upload(fileName, file);
 
@@ -397,13 +400,13 @@
           return;
         }
 
-        const { data } = supabase.storage.from('chat-images').getPublicUrl(fileName);
+        const { data } = supabase$1.storage.from('chat-images').getPublicUrl(fileName);
         imageUrl = data.publicUrl;
       }
 
       if (!content && !imageUrl) return;
 
-      const { error } = await supabase.from('messages').insert({
+      const { error } = await supabase$1.from('messages').insert({
         sender: currentUser.email,
         content,
         image_url: imageUrl
@@ -431,7 +434,7 @@
     async function loadMessages() {
       if (!currentUser) return;
 
-      const { data, error } = await supabase
+      const { data, error } = await supabase$1
         .from('messages')
         .select('sender, content, image_url, inserted_at')
         .order('inserted_at', { ascending: true });
@@ -482,33 +485,31 @@
       pollingInterval = setInterval(loadMessages, 3000);
     }
 
-    // Hapus Semua Pesan (Hanya untuk admin@gmail.com)
+    // Hapus Semua Pesan
     async function deleteAllMessages() {
       if (currentUser.email !== 'admin@gmail.com') {
         alert('Akses ditolak!');
         return;
       }
 
-      const confirmDelete = confirm('Apakah Anda yakin ingin menghapus SEMUA percakapan? Tindakan ini tidak bisa dibatalkan!');
+      const confirmDelete = confirm('Yakin ingin hapus semua pesan?');
       if (!confirmDelete) return;
 
-      // ✅ Perbaikan: Gunakan .not('id', 'is', null)
-      const { error } = await supabase
+      const { error } = await supabase$1
         .from('messages')
         .delete()
         .not('id', 'is', null);
 
       if (error) {
-        console.error('Error saat hapus:', error);
-        alert('Gagal menghapus pesan: ' + error.message);
+        alert('Gagal: ' + error.message);
       } else {
-        alert('Semua pesan berhasil dihapus!');
-        document.getElementById('messages').innerHTML = ''; // Kosongkan tampilan
+        alert('Semua pesan terhapus!');
+        document.getElementById('messages').innerHTML = '';
       }
     }
 
     // Cek session saat halaman dimuat
-    supabase.auth.getSession().then(({ data }) => {
+    supabase$1.auth.getSession().then(({ data }) => {
       if (data.session) {
         currentUser = data.session.user;
         document.getElementById('login-screen').style.display = 'none';
@@ -527,8 +528,8 @@
       }
     });
 
-    // Dengarkan perubahan auth
-    supabase.auth.onAuthStateChange((event, session) => {
+    // Dengarkan auth
+    supabase$1.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
         if (pollingInterval) clearInterval(pollingInterval);
         document.getElementById('chat-container').style.display = 'none';
