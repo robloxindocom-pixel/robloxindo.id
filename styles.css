@@ -7,12 +7,8 @@
 body {
   background: #000;
   overflow: hidden;
-  font-family: 'Orbitron', 'Arial', sans-serif;
-  color: #0ff;
-  position: relative;
+  font-family: 'Arial', sans-serif;
 }
-
-/* Tambahkan ini di HTML: <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap" rel="stylesheet"> */
 
 #particle-canvas {
   position: fixed;
@@ -35,129 +31,62 @@ body {
   pointer-events: none;
   text-align: center;
   padding: 20px;
-  z-index: 2;
 }
 
 #text-effect {
+  /* Ukuran responsif */
   font-size: 8vw;
   color: transparent;
-  font-weight: 700;
-  letter-spacing: 4px;
+  background: linear-gradient(45deg, #ffcc00, #ff6600, #ffcc00);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: bold;
+  letter-spacing: 2px;
   opacity: 0;
   pointer-events: auto;
-  transition: opacity 1.5s ease;
+  transition: opacity 1s ease;
   white-space: nowrap;
   cursor: pointer;
   position: relative;
   display: inline-block;
-  text-transform: uppercase;
-  font-family: 'Orbitron', 'Arial', sans-serif;
-
-  /* Gradient neon cyberpunk */
-  background: linear-gradient(45deg, #00f3ff, #b300ff, #ff00ea, #00f3ff);
-  background-size: 300% 300%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-
-  /* Efek 3D + neon glow */
-  text-shadow: 
-    0 0 5px rgba(0, 243, 255, 0.5),
-    0 0 10px rgba(0, 243, 255, 0.6),
-    0 0 20px rgba(0, 243, 255, 0.7),
-    0 0 40px rgba(0, 243, 255, 0.8),
-    0 0 80px rgba(0, 243, 255, 0.9),
-    /* Bayangan 3D */
-    2px 2px 0 rgba(179, 0, 255, 0.4),
-    4px 4px 0 rgba(255, 0, 234, 0.3);
-  transform: translateZ(0);
 }
 
-/* Animasi: glow berdenyut + pergeseran warna gradient */
-@keyframes glowPulse {
-  0%, 100% {
-    background-position: 0% 50%;
-    text-shadow: 
-      0 0 5px rgba(0, 243, 255, 0.5),
-      0 0 10px rgba(0, 243, 255, 0.6),
-      0 0 20px rgba(0, 243, 255, 0.7),
-      0 0 40px rgba(0, 243, 255, 0.8),
-      0 0 80px rgba(0, 243, 255, 0.9),
-      2px 2px 0 rgba(179, 0, 255, 0.4),
-      4px 4px 0 rgba(255, 0, 234, 0.3);
-  }
-  50% {
-    background-position: 100% 50%;
-    text-shadow: 
-      0 0 10px rgba(179, 0, 255, 0.6),
-      0 0 20px rgba(179, 0, 255, 0.7),
-      0 0 30px rgba(179, 0, 255, 0.8),
-      0 0 50px rgba(179, 0, 255, 0.9),
-      0 0 90px rgba(179, 0, 255, 1),
-      2px 2px 0 rgba(255, 0, 234, 0.4),
-      4px 4px 0 rgba(0, 243, 255, 0.3);
-  }
-}
-
-/* Animasi napas 3D (mendalam) */
+/* Animasi: teks membesar-mengecil seperti napas (maju-mundur) */
 @keyframes breathe {
   0%, 100% {
-    transform: scale(1) translateZ(0);
+    transform: scale(1);
   }
   50% {
-    transform: scale(1.08) translateZ(20px);
+    transform: scale(1.08);
   }
 }
 
-/* Glitch halus (opsional) */
-@keyframes glitch {
-  0%, 100% { clip-path: inset(0 0 98% 0); }
-  2% { clip-path: inset(40% 0 40% 0); }
-  4% { clip-path: inset(0 0 98% 0); }
-  6% { clip-path: inset(70% 0 20% 0); }
-  8% { clip-path: inset(0 0 98% 0); }
-  10% { clip-path: inset(50% 0 40% 0); }
-  12% { clip-path: inset(0 0 98% 0); }
+/* Animasi: cahaya kuning-oranye berdenyut */
+@keyframes glowPulse {
+  0%, 100% {
+    text-shadow: 0 0 15px rgba(255, 204, 0, 0.7),
+                 0 0 25px rgba(255, 204, 0, 0.5);
+  }
+  50% {
+    text-shadow: 0 0 20px rgba(255, 102, 0, 0.8),
+                 0 0 35px rgba(255, 102, 0, 0.6),
+                 0 0 10px rgba(255, 204, 0, 0.4);
+  }
 }
 
-/* Gabungkan semua animasi */
+/* Gabungkan dua animasi: glow + breathe */
 #text-effect {
   animation: 
-    glowPulse 3s ease-in-out infinite alternate,
-    breathe 5s ease-in-out infinite,
-    glitch 3s infinite ease-in-out;
-}
-
-/* Efek CRT: scanline seperti monitor lama */
-body::before {
-  content: "";
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: repeating-linear-gradient(
-    0deg,
-    rgba(10, 0, 20, 0) 0px,
-    rgba(10, 0, 20, 0.03) 1px,
-    transparent 2px
-  );
-  pointer-events: none;
-  z-index: 1;
-  opacity: 0.3;
-  animation: scanline 8s linear infinite;
-}
-
-@keyframes scanline {
-  0% { background-position: 0 0; }
-  100% { background-position: 0 100vh; }
+    glowPulse 2s ease-in-out infinite,
+    breathe 4s ease-in-out infinite;
 }
 
 /* Responsif: HP kecil */
 @media (max-width: 480px) {
   #text-effect {
     font-size: 6vw;
-    letter-spacing: 2px;
+    letter-spacing: 1px;
   }
 }
 
