@@ -1,238 +1,241 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>3D Particle: noobs market</title>
-  <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      background-color: #000;
-      font-family: Arial, sans-serif;
+// Tunggu DOM sepenuhnya siap
+document.addEventListener('DOMContentLoaded', () => {
+  // Ambil elemen setelah DOM siap
+  const canvas = document.getElementById('particle-canvas');
+  const ctx = canvas.getContext('2d');
+  const textElement = document.getElementById('text-effect');
+
+  // Set ukuran canvas
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  // Variabel
+  let particles = [];
+  let textParticles = [];
+  let formingText = false;
+  let textFormed = false;
+  let explosionDone = false;
+
+  // Mouse interaction
+  let mouse = {
+    x: undefined,
+    y: undefined,
+    radius: 150
+  };
+
+  // 🔊 Suara ledakan (hanya sekali)
+  const explosionSound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-whoosh-whoosh-3000.mp3');
+  const clickSound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-small-impact-674.mp3');
+
+  // Pastikan URL tidak ada spasi ekstra
+  explosionSound.preload = 'auto';
+  clickSound.preload = 'auto';
+
+  function playExplosion() {
+    explosionSound.currentTime = 0;
+    explosionSound.play().catch(e => console.log("Suara ledakan diblokir:", e));
+  }
+
+  function playClick() {
+    clickSound.currentTime = 0;
+    clickSound.play().catch(e => console.log("Suara klik diblokir:", e));
+  }
+
+  // Event: mouse move
+  window.addEventListener('mousemove', (e) => {
+    mouse.x = e.x;
+    mouse.y = e.y;
+  });
+
+  // Event: klik → ledakan kecil (opsional)
+  window.addEventListener('click', (e) => {
+    playClick();
+    for (let i = 0; i < 150; i++) {
+      const hue = Math.random() * 20 + 20;
+      const color = `hsl(${hue}, 100%, 65%)`;
+      const size = Math.random() * 5 + 1;
+      particles.push(new Particle(e.x, e.y, color, size));
     }
-    #text-effect {
-      position: absolute;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: white;
-      font-size: 24px;
-      opacity: 0;
-      transition: opacity 1s;
-      z-index: 10;
-      pointer-events: none;
-    }
-  </style>
-</head>
-<body>
-  <div id="text-effect">noobs market</div>
-  <script type="module">
-    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.module.js';
-    import { FontLoader } from 'https://cdn.jsdelivr.net/npm/three@0.157.0/examples/jsm/loaders/FontLoader.js';
-    import { TextGeometry } from 'https://cdn.jsdelivr.net/npm/three@0.157.0/examples/jsm/geometries/TextGeometry.js';
+  });
 
-    // Suara
-    const explosionSound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-whoosh-whoosh-3000.mp3');
-    const clickSound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-small-impact-674.mp3');
-    explosionSound.preload = 'auto';
-    clickSound.preload = 'auto';
-
-    function playExplosion() {
-      explosionSound.currentTime = 0;
-      explosionSound.play().catch(e => console.log("Suara ledakan diblokir:", e));
+  // Class Partikel
+  class Particle {
+    constructor(x, y, color = 'orange', size = 2) {
+      this.x = x;
+      this.y = y;
+      this.originX = x;
+      this.originY = y;
+      this.size = size;
+      this.color = color;
+      this.speedX = 0;
+      this.speedY = 0;
     }
 
-    function playClick() {
-      clickSound.currentTime = 0;
-      clickSound.play().catch(e => console.log("Suara klik diblokir:", e));
+    draw() {
+      ctx.fillStyle = this.color;
+      ctx.fillRect(this.x, this.y, this.size, this.size);
     }
 
-    // Scene, Camera, Renderer
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    document.body.appendChild(renderer.domElement);
+    update(deltaTime) {
+      // Normalisasi ke 60 FPS
+      const dtFactor = deltaTime * 60;
 
-    camera.position.z = 50;
+      // 1. Berkumpul ke posisi teks
+      if (formingText && !textFormed) {
+        const dx = this.originX - this.x;
+        const dy = this.originY - this.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
 
-    // Mouse
-    const mouse = { x: 0, y: 0 };
-    window.addEventListener('mousemove', (e) => {
-      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-    });
-
-    window.addEventListener('click', () => {
-      playClick();
-      // Bisa tambah efek klik di sini (misal: partikel tambahan)
-    });
-
-    // Partikel
-    let particles = [];
-    let particlePositions = [];
-    let formingText = false;
-    let textFormed = false;
-    let explosionDone = false;
-
-    // Material partikel
-    const particleGeometry = new THREE.BufferGeometry();
-    const particleMaterial = new THREE.PointsMaterial({
-      color: 0xffaa00,
-      size: 0.4,
-      transparent: true,
-      opacity: 0.9,
-      sizeAttenuation: true
-    });
-
-    const particleSystem = new THREE.Points(particleGeometry, particleMaterial);
-    scene.add(particleSystem);
-
-    // Font loader
-    const fontLoader = new FontLoader();
-    fontLoader.load('https://threejs.org/examples/fonts/helvetiker_bold.typeface.json', (font) => {
-      const textGeometry = new TextGeometry('noobs market', {
-        font: font,
-        size: 5,
-        height: 0.5,
-        curveSegments: 6,
-        bevelEnabled: false
-      });
-
-      textGeometry.computeBoundingBox();
-      const centerOffset = -0.5 * (textGeometry.boundingBox.max.x - textGeometry.boundingBox.min.x);
-
-      const positions = [];
-      textGeometry.translate(centerOffset, 0, 0);
-
-      const textVertices = textGeometry.attributes.position.array;
-      for (let i = 0; i < textVertices.length; i += 3) {
-        positions.push(
-          textVertices[i] + (Math.random() - 0.5),
-          textVertices[i + 1] + (Math.random() - 0.5),
-          textVertices[i + 2] + (Math.random() - 0.5)
-        );
-      }
-
-      // Acak posisi
-      particlePositions = positions.sort(() => Math.random() - 0.5);
-
-      // Inisialisasi partikel dari luar area
-      const initialPositions = [];
-      for (let i = 0; i < particlePositions.length; i += 3) {
-        initialPositions.push(
-          (Math.random() - 0.5) * 100,
-          (Math.random() - 0.5) * 100,
-          (Math.random() - 0.5) * 100
-        );
-      }
-
-      particleGeometry.setAttribute(
-        'position',
-        new THREE.Float32BufferAttribute(initialPositions, 3)
-      );
-
-      // Mulai formasi setelah 1 detik
-      setTimeout(() => {
-        formingText = true;
-        document.getElementById('text-effect').style.opacity = 1;
-      }, 1000);
-    });
-
-    // Update posisi partikel
-    function animateParticles() {
-      if (!formingText || explosionDone) return;
-
-      const positions = particleGeometry.attributes.position.array;
-
-      let allClose = true;
-      const threshold = 0.5;
-
-      for (let i = 0; i < positions.length; i += 3) {
-        const targetX = particlePositions[i];
-        const targetY = particlePositions[i + 1];
-        const targetZ = particlePositions[i + 2];
-
-        const dx = targetX - positions[i];
-        const dy = targetY - positions[i + 1];
-        const dz = targetZ - positions[i + 2];
-        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-
-        if (dist > threshold) {
-          allClose = false;
-          positions[i] += dx * 0.03;
-          positions[i + 1] += dy * 0.03;
-          positions[i + 2] += dz * 0.03;
-        } else {
-          positions[i] = targetX;
-          positions[i + 1] = targetY;
-          positions[i + 2] = targetZ;
+        if (dist > 1) {
+          this.x += dx * 0.05 * dtFactor;
+          this.y += dy * 0.05 * dtFactor;
         }
       }
-
-      if (allClose && !textFormed) {
-        textFormed = true;
-        playExplosion();
-        explosionDone = true;
+      // 2. Meledak: ledakan ke segala arah
+      else if (!explosionDone) {
+        if (this.speedX === 0 && this.speedY === 0) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = Math.random() * 8 + 3;
+          this.speedX = Math.cos(angle) * speed;
+          this.speedY = Math.sin(angle) * speed;
+        }
+        this.x += this.speedX * dtFactor;
+        this.y += this.speedY * dtFactor;
       }
+      // 3. Setelah ledakan → interaksi + gerakan santai
+      else {
+        // Tarik ke mouse
+        if (mouse.x && mouse.y) {
+          const dx = mouse.x - this.x;
+          const dy = mouse.y - this.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
 
-      particleGeometry.attributes.position.needsUpdate = true;
-    }
-
-    // Animasi utama
-    function animate(time) {
-      requestAnimationFrame(animate);
-
-      // Update partikel
-      if (formingText) {
-        animateParticles();
-      }
-
-      // Interaksi mouse (jika sudah meledak)
-      if (explosionDone && particleSystem.geometry.attributes.position) {
-        const positions = particleSystem.geometry.attributes.position.array;
-        const timeFactor = time * 0.0005;
-
-        for (let i = 0; i < positions.length; i += 3) {
-          // Gerakan halus + noise
-          positions[i] += Math.sin(timeFactor + i) * 0.01;
-          positions[i + 1] += Math.cos(timeFactor + i) * 0.01;
-
-          // Tarik ke arah mouse
-          const worldX = positions[i] + camera.position.x;
-          const worldY = positions[i + 1] + camera.position.y;
-          const dx = mouse.x * 20 - worldX;
-          const dy = mouse.y * 20 - worldY;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-
-          if (dist < 15) {
-            const force = (15 - dist) / 15;
-            positions[i] += dx * force * 0.02;
-            positions[i + 1] += dy * force * 0.02;
+          if (distance < mouse.radius) {
+            const force = (mouse.radius - distance) / mouse.radius;
+            const strength = (1 - force) * 3;
+            this.speedX -= dx * force * 0.06 * strength * dtFactor;
+            this.speedY -= dy * force * 0.06 * strength * dtFactor;
           }
         }
-        particleSystem.geometry.attributes.position.needsUpdate = true;
+
+        // Gerakan acak halus
+        this.speedX += (Math.random() - 0.5) * 0.2 * dtFactor;
+        this.speedY += (Math.random() - 0.5) * 0.2 * dtFactor;
+
+        // Batasi kecepatan maksimal
+        const maxSpeed = 4;
+        if (this.speedX > maxSpeed) this.speedX = maxSpeed;
+        if (this.speedX < -maxSpeed) this.speedX = -maxSpeed;
+        if (this.speedY > maxSpeed) this.speedY = maxSpeed;
+        if (this.speedY < -maxSpeed) this.speedY = -maxSpeed;
+
+        this.x += this.speedX * dtFactor;
+        this.y += this.speedY * dtFactor;
+
+        // Loop dari sisi lain layar
+        if (this.x < 0) this.x = canvas.width;
+        if (this.x > canvas.width) this.x = 0;
+        if (this.y < 0) this.y = canvas.height;
+        if (this.y > canvas.height) this.y = 0;
       }
+    }
+  }
 
-      // Rotasi halus kamera
-      camera.position.x += (mouse.x * 5 - camera.position.x) * 0.01;
-      camera.position.y += (mouse.y * 5 - camera.position.y) * 0.01;
-      camera.lookAt(scene.position);
+  // Buat partikel dari posisi teks
+  function createTextParticles() {
+    const tempCanvas = document.createElement('canvas');
+    const tempCtx = tempCanvas.getContext('2d');
+    tempCanvas.width = canvas.width;
+    tempCanvas.height = canvas.height;
 
-      renderer.render(scene, camera);
+    tempCtx.font = 'bold 70px Arial';
+    tempCtx.fillStyle = 'white';
+    const text = textElement.textContent;
+    const metrics = tempCtx.measureText(text);
+    const x = (canvas.width - metrics.width) / 2;
+    const y = canvas.height / 2;
+
+    tempCtx.fillText(text, x, y);
+
+    const pixels = tempCtx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+    for (let y = 0; y < canvas.height; y += 6) {
+      for (let x = 0; x < canvas.width; x += 6) {
+        const i = (y * canvas.width + x) * 4;
+        if (pixels[i + 3] > 0) {
+          textParticles.push({ x, y });
+        }
+      }
     }
 
-    // Resize
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
+    // Acak urutan partikel
+    textParticles.sort(() => Math.random() - 0.5);
+
+    // Buat 500 partikel awal dari luar layar
+    for (let i = 0; i < 500; i++) {
+      const x = Math.random() * canvas.width * 3 - canvas.width;
+      const y = Math.random() * canvas.height * 3 - canvas.height;
+      const hue = Math.random() * 20 + 20; // Warna oranye ke kuning
+      const size = Math.random() * 5 + 1;
+      particles.push(new Particle(x, y, `hsl(${hue}, 100%, 65%)`, size));
+    }
+  }
+
+  // Animasi utama dengan deltaTime
+  let lastTime = 0;
+
+  function animate(currentTime) {
+    const deltaTime = currentTime - lastTime;
+    lastTime = currentTime;
+
+    // Konversi ke detik, normalisasi ke 60 FPS
+    const dt = deltaTime / 1000;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    particles.forEach(p => {
+      p.update(dt);
+      p.draw();
     });
 
-    // Mulai
-    animate();
-  </script>
-</body>
-</html>
+    // Cek apakah semua partikel sudah dekat posisi teks
+    if (formingText && !textFormed) {
+      const allClose = particles.every(p => {
+        const dx = p.originX - p.x;
+        const dy = p.originY - p.y;
+        return Math.sqrt(dx * dx + dy * dy) < 8;
+      });
+
+      if (allClose && !explosionDone) {
+        textFormed = true;
+        textElement.style.opacity = 1;
+        playExplosion(); // 🔊 Suara ledakan
+        explosionDone = true; // Mulai fase interaksi
+      }
+    }
+
+    requestAnimationFrame(animate);
+  }
+
+  // Resize canvas saat ukuran layar berubah
+  window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    // Optional: reset textParticles jika perlu, tapi tidak wajib
+  });
+
+  // Inisialisasi
+  createTextParticles();
+
+  // Mulai membentuk teks setelah 1 detik
+  setTimeout(() => {
+    formingText = true;
+    for (let i = 0; i < Math.min(particles.length, textParticles.length); i++) {
+      particles[i].originX = textParticles[i].x;
+      particles[i].originY = textParticles[i].y;
+    }
+  }, 1000);
+
+  // Jalankan animasi
+  requestAnimationFrame(animate);
+});
