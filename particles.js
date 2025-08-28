@@ -45,6 +45,20 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('mousemove', (e) => {
     mouse.x = e.x;
     mouse.y = e.y;
+
+    // Parallax effect untuk teks
+    if (textFormed && explosionDone) {
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const dx = (mouse.x - centerX) * 0.03;
+      const dy = (mouse.y - centerY) * 0.03;
+
+      const maxOffset = 20;
+      const offsetX = Math.max(-maxOffset, Math.min(maxOffset, dx));
+      const offsetY = Math.max(-maxOffset, Math.min(maxOffset, dy));
+
+      textElement.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+    }
   });
 
   // Event: klik → ledakan kecil (opsional)
@@ -77,7 +91,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     update(deltaTime) {
-      // Normalisasi ke 60 FPS
       const dtFactor = deltaTime * 60;
 
       // 1. Berkumpul ke posisi teks
@@ -122,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
         this.speedX += (Math.random() - 0.5) * 0.2 * dtFactor;
         this.speedY += (Math.random() - 0.5) * 0.2 * dtFactor;
 
-        // Batasi kecepatan maksimal
+        // Batasi kecepatan
         const maxSpeed = 4;
         if (this.speedX > maxSpeed) this.speedX = maxSpeed;
         if (this.speedX < -maxSpeed) this.speedX = -maxSpeed;
@@ -171,30 +184,26 @@ document.addEventListener('DOMContentLoaded', () => {
     // Acak urutan partikel
     textParticles.sort(() => Math.random() - 0.5);
 
-    // Buat 500 partikel awal dari luar layar
+    // Buat 500 partikel awal
     for (let i = 0; i < 500; i++) {
       const x = Math.random() * canvas.width * 3 - canvas.width;
       const y = Math.random() * canvas.height * 3 - canvas.height;
-      const hue = Math.random() * 20 + 20; // Warna oranye ke kuning
+      const hue = Math.random() * 20 + 20;
       const size = Math.random() * 5 + 1;
       particles.push(new Particle(x, y, `hsl(${hue}, 100%, 65%)`, size));
     }
   }
 
-  // Animasi utama dengan deltaTime
+  // Animasi utama
   let lastTime = 0;
-
   function animate(currentTime) {
-    const deltaTime = currentTime - lastTime;
+    const deltaTime = (currentTime - lastTime) / 1000;
     lastTime = currentTime;
-
-    // Konversi ke detik, normalisasi ke 60 FPS
-    const dt = deltaTime / 1000;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     particles.forEach(p => {
-      p.update(dt);
+      p.update(deltaTime);
       p.draw();
     });
 
@@ -209,8 +218,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (allClose && !explosionDone) {
         textFormed = true;
         textElement.style.opacity = 1;
-        playExplosion(); // 🔊 Suara ledakan
-        explosionDone = true; // Mulai fase interaksi
+        playExplosion();
+        explosionDone = true;
       }
     }
 
@@ -221,7 +230,6 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('resize', () => {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-    // Optional: reset textParticles jika perlu, tapi tidak wajib
   });
 
   // Inisialisasi
