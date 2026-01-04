@@ -444,7 +444,7 @@
     async function loadAuctionItemsForSale() {
       const { data, error } = await supabase
         .from("auction_items")
-        .select("id, title, image_url, fixed_price, stock, admin_email, game_name, item_name")
+        .select("id, title, image_url, fixed_price, stock, game_name, item_name") // ❌ HAPUS admin_email
         .order("title", { ascending: true });
 
       const tbody = document.getElementById("marketplace-table-body");
