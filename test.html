@@ -351,6 +351,26 @@
 <body>
   <div class="container">
     <header>
+
+      <div id="auth-section" style="text-align: center; margin-bottom: 20px;">
+  <button id="google-login-btn" style="
+    background: #4285F4;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  ">
+    <i class="fab fa-google"></i> Login dengan Google
+  </button>
+  <p id="login-status" style="margin-top: 10px; color: #7f8c8d; font-size: 14px;"></p>
+</div>
+      
       <!-- Tombol Kembali -->
       <a href="admine-petote.html" class="back-btn">
         <i class="fas fa-arrow-left"></i> Kembali
@@ -456,6 +476,34 @@
       await loadAuctionItemsForSale();
     });
 
+    // Tambahkan di dalam DOMContentLoaded, setelah emailSpan.textContent = ...
+const loginBtn = document.getElementById('google-login-btn');
+const loginStatus = document.getElementById('login-status');
+
+if (user && user.email === allowedAdminEmail) {
+  // Admin sudah login → sembunyikan tombol login
+  document.getElementById('auth-section').style.display = 'none';
+} else {
+  // Belum login atau bukan admin → tampilkan tombol
+  loginBtn.addEventListener('click', signInWithGoogle);
+  loginStatus.textContent = 'Silakan login sebagai admin untuk mengakses halaman ini.';
+}
+
+    // Fungsi login dengan Google
+async function signInWithGoogle() {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: window.location.href // Redirect kembali ke halaman ini setelah login
+    }
+  });
+
+  if (error) {
+    console.error('Login error:', error.message);
+    document.getElementById('login-status').textContent = '❌ Gagal login: ' + error.message;
+  }
+}
+    
 async function loadAuctionItemsForSale() {
   const { data, error } = await supabase
     .from("auction_items")
