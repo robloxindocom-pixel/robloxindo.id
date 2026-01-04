@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Marketplace - Kelola Stok</title>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #f8f9fa;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 30px auto;
+      padding: 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 30px;
+      position: relative;
+    }
+
+    /* Tombol Kembali */
+    .back-btn {
+      position: absolute;
+      left: 0;
+      top: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: #3498db;
+      background: #eaf2ff;
+      padding: 8px 14px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 5px rgba(52, 152, 219, 0.1);
+    }
+
+    .back-btn:hover {
+      background: #d4e6f1;
+      color: #2980b9;
+      transform: translateY(-1px);
+    }
+
+    header h1 {
+      font-size: 28px;
+      color: #2c3e50;
+      margin-bottom: 8px;
+    }
+
+    header p {
+      color: #7f8c8d;
+      font-size: 16px;
+    }
+
+    #admin-info {
+      background: #3498db;
+      color: white;
+      padding: 10px 15px;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .table-container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    thead {
+      background: #2c3e50;
+      color: white;
+    }
+
+    th {
+      padding: 15px 12px;
+      text-align: left;
+      font-weight: 600;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid #eee;
+      transition: background 0.2s;
+    }
+
+    tbody tr:hover {
+      background: #f1f8ff;
+    }
+
+    td {
+      padding: 12px;
+    }
+
+    .item-image {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .item-image:hover {
+      transform: scale(1.05);
+    }
+
+    .item-info {
+      margin-left: 10px;
+    }
+
+    .item-title {
+      font-weight: 600;
+      color: #2c3e50;
+      cursor: pointer;
+      display: inline-block;
+      border-bottom: 1px dashed #aaa;
+    }
+
+    .item-desc {
+      font-size: 12px;
+      color: #7f8c8d;
+      margin-top: 4px;
+      cursor: pointer;
+      border-bottom: 1px dashed #aaa;
+    }
+
+    .item-game, .item-type {
+      font-size: 12px;
+      color: #555;
+      margin-top: 2px;
+      cursor: pointer;
+      border-bottom: 1px dashed #aaa;
+    }
+
+    .stock-input, .price-input {
+      padding: 8px;
+      width: 80px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .price-input {
+      width: 110px;
+    }
+
+    .status-badge {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .status-active {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .status-inactive {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .action-btn {
+      background: #27ae60;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.3s;
+      margin-bottom: 5px;
+    }
+
+    .action-btn:hover {
+      background: #219653;
+    }
+
+    .action-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .action-btn-delete {
+      background: #e74c3c;
+    }
+
+    .action-btn-delete:hover {
+      background: #c0392b;
+    }
+
+    /* Modal Styling */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 500px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+
+    .modal h3 {
+      margin-bottom: 15px;
+      color: #2c3e50;
+    }
+
+    .modal p {
+      margin-bottom: 15px;
+      color: #7f8c8d;
+    }
+
+    .modal input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .modal-buttons {
+      text-align: right;
+    }
+
+    .modal-btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .modal-btn-save {
+      background: #27ae60;
+      color: white;
+      margin-left: 10px;
+    }
+
+    .modal-btn-cancel {
+      background: #95a5a6;
+      color: white;
+    }
+
+    .modal-btn-delete {
+      background: #e74c3c;
+      color: white;
+      margin-left: 10px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #7f8c8d;
+      font-style: italic;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 30px;
+      color: #7f8c8d;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 15px;
+      }
+      header h1 {
+        font-size: 24px;
+      }
+      .back-btn {
+        font-size: 13px;
+        padding: 6px 10px;
+      }
+      th, td {
+        padding: 10px 8px;
+        font-size: 13px;
+      }
+      .item-image {
+        width: 50px;
+        height: 50px;
+      }
+      .stock-input, .price-input {
+        width: 70px;
+        font-size: 13px;
+      }
+      .price-input {
+        width: 100px;
+      }
+      .action-btn {
+        padding: 6px 10px;
+        font-size: 12px;
+      }
+    }
+        /* Styling untuk dropdown item */
+    .dropdown-item {
+      padding: 10px;
+      cursor: pointer;
+      border-bottom: 1px solid #eee;
+    }
+
+    .dropdown-item:hover {
+      background-color: #f1f8ff;
+    }
+    
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <!-- Tombol Kembali -->
+      <a href="admine-petote.html" class="back-btn">
+        <i class="fas fa-arrow-left"></i> Kembali
+      </a>
+
+      <!-- Judul Utama -->
+      <h1><i class="fas fa-store"></i> Admin Marketplace</h1>
+      <p>Kelola stok, harga, dan informasi barang</p>
+    </header>
+
+    <div id="admin-info">
+      Admin: <span id="admin-email">Memuat...</span>
+    </div>
+
+        <!-- Baris baru: Search dan Dropdown Game -->
+    <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+      <label for="game-search">Cari Nama Game:</label>
+      <div style="position: relative; flex: 1; max-width: 300px;">
+        <input type="text" id="game-search" placeholder="Ketik untuk mencari game..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+        <div id="game-dropdown" class="dropdown-content" style="display: none; position: absolute; background: white; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); z-index: 99; max-height: 200px; overflow-y: auto; width: 100%;">
+          <!-- Isi dropdown akan diisi oleh JavaScript -->
+        </div>
+      </div>
+      <button id="clear-search-btn" style="padding: 10px 15px; background: #95a5a6; color: white; border: none; border-radius: 6px; cursor: pointer;">Clear</button>
+    </div>
+
+    
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Gambar</th>
+            <th>Barang</th>
+            <th>Nama Game</th> <!-- Kolom Baru -->
+            <th>Nama Item</th> <!-- Kolom Baru -->
+            <th>Stok</th>
+            <th>Harga Saat Ini</th>
+            <th>Edit Harga</th>
+            <th>Status</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="marketplace-table-body">
+          <tr><td colspan="9" class="loading">Memuat data barang...</td></tr> <!-- Update colspan -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal untuk Edit Gambar -->
+  <div id="imageModal" class="modal">
+    <div class="modal-content">
+      <h3><i class="fas fa-image"></i> Ubah URL Gambar</h3>
+      <input type="text" id="imageUrlInput" placeholder="Masukkan URL gambar baru">
+      <div class="modal-buttons">
+        <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Batal</button>
+        <button class="modal-btn modal-btn-save" onclick="saveImageChange()">Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal untuk Konfirmasi Hapus -->
+  <div id="deleteModal" class="modal">
+    <div class="modal-content">
+      <h3><i class="fas fa-trash-alt"></i> Konfirmasi Hapus</h3>
+      <p>Apakah Anda yakin ingin menghapus item ini? Tindakan ini tidak dapat dibatalkan.</p>
+      <div class="modal-buttons">
+        <button class="modal-btn modal-btn-cancel" onclick="closeDeleteModal()">Batal</button>
+        <button class="modal-btn modal-btn-delete" onclick="confirmDelete()">Hapus</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    const supabaseUrl = "https://nrewuyamtvoycnznuqqx.supabase.co";
+    const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5yZXd1eWFtdHZveWNuem51cXF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI0MzYzMDMsImV4cCI6MjA2ODAxMjMwM30.oIJ29RUXCC9NHp3LSnqnNalJ80RGQHv_UW602izFtIs";
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+    const allowedAdminEmail = "balongemoy@gmail.com";
+
+    let currentItemId = null; // currentItemId hanya digunakan untuk imageModal sekarang
+    let itemToDeleteId = null; // Untuk menyimpan ID item yang akan dihapus
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const emailSpan = document.getElementById("admin-email");
+
+      if (!user || user.email !== allowedAdminEmail) {
+        emailSpan.textContent = "Akses Ditolak";
+        document.getElementById("marketplace-table-body").innerHTML = `
+          <tr><td colspan="9" class="empty-state"> <!-- Update colspan -->
+            <i class="fas fa-lock" style="font-size: 24px; margin-bottom: 10px;"></i><br>
+            Akses ditolak. Hanya admin yang sah.
+          </td></tr>
+        `;
+        return;
+      }
+
+      emailSpan.textContent = user.email;
+      await loadAuctionItemsForSale();
+    });
+
+async function loadAuctionItemsForSale() {
+  const { data, error } = await supabase
+    .from("auction_items")
+    .select("id, title, image_url, fixed_price, stock, admin_email, game_name, item_name") // Hapus is_active
+    .order("title", { ascending: true });
+
+  const tbody = document.getElementById("marketplace-table-body");
+
+  if (error) {
+    tbody.innerHTML = `
+      <tr><td colspan="9" class="empty-state"> <!-- Update colspan -->
+        ❌ Gagal memuat data: ${error.message}
+      </td></tr>
+    `;
+    console.error("Supabase error:", error);
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    tbody.innerHTML = `
+      <tr><td colspan="9" class="empty-state"> <!-- Update colspan -->
+        🛍️ Tidak ada barang di marketplace.
+      </td></tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = "";
+
+  data.forEach(item => {
+    const formattedPrice = new Intl.NumberFormat('id-ID').format(item.fixed_price || 0);
+    // Kita tidak lagi menggunakan is_active, jadi status selalu dianggap Aktif
+    const statusClass = 'status-active';
+    const statusText = 'Aktif';
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>
+        <img src="${item.image_url || 'https://via.placeholder.com/60?text=No+Image  '}" 
+             alt="${item.title}" class="item-image" 
+             data-id="${item.id}" onclick="openImageModal('${item.id}', this.src)">
+      </td>
+      <td>
+        <div class="item-info">
+          <div class="item-title" 
+               contenteditable="false" 
+               data-field="title" 
+               data-id="${item.id}"
+               onclick="enableEdit(this)">
+            ${item.title}
+          </div>
+          <!-- Kolom deskripsi dihapus -->
+        </div>
+      </td>
+      <!-- Kolom Nama Game Baru -->
+      <td>
+        <div class="item-game" 
+             contenteditable="false" 
+             data-field="game_name" 
+             data-id="${item.id}"
+             onclick="enableEdit(this)">
+          ${item.game_name || 'Belum diisi'}
+        </div>
+      </td>
+      <!-- Kolom Nama Item Baru -->
+      <td>
+        <div class="item-type" 
+             contenteditable="false" 
+             data-field="item_name" 
+             data-id="${item.id}"
+             onclick="enableEdit(this)">
+          ${item.item_name || 'Belum diisi'}
+        </div>
+      </td>
+      <td>
+        <input type="number" value="${item.stock || 0}" min="0" 
+               class="stock-input" data-id="${item.id}" data-field="stock">
+      </td>
+      <td>Rp ${formattedPrice}</td>
+      <td>
+        <input type="number" value="${item.fixed_price || 0}" min="0" 
+               class="price-input" data-id="${item.id}" data-field="fixed_price">
+      </td>
+      <td>
+        <span class="status-badge ${statusClass}">${statusText}</span>
+      </td>
+      <td>
+        <button class="action-btn" onclick="saveItemField('${item.id}')">
+          <i class="fas fa-save"></i> Simpan
+        </button>
+        <!-- TOMBOL EDIT GAME/ITEM DIHAPUS -->
+        <button class="action-btn action-btn-delete" onclick="openDeleteModal('${item.id}')"> <!-- Tombol Hapus -->
+          <i class="fas fa-trash"></i> Hapus
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Tambahkan event listener untuk edit judul, game_name, dan item_name
+  document.querySelectorAll('.item-title, .item-game, .item-type').forEach(el => {
+    el.addEventListener('blur', function () {
+      saveInlineEdit(this);
+    });
+  });
+}
+
+    // Buka modal edit gambar
+    function openImageModal(itemId, currentUrl) {
+      currentItemId = itemId;
+      document.getElementById('imageUrlInput').value = currentUrl;
+      document.getElementById('imageModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+      document.getElementById('imageModal').style.display = 'none';
+      currentItemId = null;
+    }
+
+    async function saveImageChange() {
+      const newUrl = document.getElementById('imageUrlInput').value.trim();
+      if (!newUrl) {
+        alert("URL gambar tidak boleh kosong.");
+        return;
+      }
+
+      const imgElement = document.querySelector(`img[data-id="${currentItemId}"]`);
+      const oldUrl = imgElement.src;
+      imgElement.src = newUrl; // Update preview
+
+      const { error } = await supabase
+        .from("auction_items")
+        .update({ image_url: newUrl })
+        .eq("id", currentItemId);
+
+      if (error) {
+        alert("Gagal menyimpan URL gambar: " + error.message);
+        imgElement.src = oldUrl; // Rollback
+      } else {
+        alert("✅ URL gambar berhasil diperbarui!");
+      }
+
+      closeModal();
+    }
+
+    // Buka modal konfirmasi hapus
+    function openDeleteModal(itemId) {
+      itemToDeleteId = itemId;
+      document.getElementById('deleteModal').style.display = 'flex';
+    }
+
+    function closeDeleteModal() {
+      document.getElementById('deleteModal').style.display = 'none';
+      itemToDeleteId = null;
+    }
+
+    // Konfirmasi dan lakukan penghapusan
+    async function confirmDelete() {
+      if (!itemToDeleteId) {
+        alert("ID item tidak valid.");
+        return;
+      }
+
+      const { error } = await supabase
+        .from("auction_items")
+        .delete()
+        .eq("id", itemToDeleteId);
+
+      if (error) {
+        alert("Gagal menghapus item: " + error.message);
+      } else {
+        alert("✅ Item berhasil dihapus!");
+        await loadAuctionItemsForSale(); // Refresh tabel
+      }
+      closeDeleteModal();
+    }
+
+
+    // Aktifkan edit inline
+    function enableEdit(element) {
+      element.contentEditable = true;
+      element.focus();
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+
+    // Simpan edit judul/deskripsi/game_name/item_name
+    async function saveInlineEdit(element) {
+      const itemId = element.dataset.id;
+      const field = element.dataset.field;
+      const value = element.textContent.trim();
+
+      // Jangan validasi game_name dan item_name kosong seperti title/desc
+if (field === 'title' && !value) {
+   alert('Judul tidak boleh kosong.');
+   element.textContent = 'Tidak ada judul';
+   return;
+}
+
+      const { error } = await supabase
+        .from("auction_items")
+        .update({ [field]: value || null }) // Gunakan null jika kosong
+        .eq("id", itemId);
+
+      if (error) {
+        alert(`Gagal update ${field}: ${error.message}`);
+        // Jika gagal, kembalikan nilai sebelumnya
+        element.textContent = element.dataset.originalValue || (field === 'title' ? 'Tidak ada judul' : 'Belum diisi');
+      } else {
+        console.log(`${field} diperbarui untuk ID: ${itemId}`);
+        // Update dataset untuk nilai sebelumnya jika perlu
+        element.dataset.originalValue = value;
+      }
+    }
+
+    // Simpan stok & harga
+    async function saveItemField(itemId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || user.email !== allowedAdminEmail) {
+        alert("Akses ditolak.");
+        return;
+      }
+
+      const stockInput = document.querySelector(`input[data-id="${itemId}"][data-field="stock"]`);
+      const priceInput = document.querySelector(`input[data-id="${itemId}"][data-field="fixed_price"]`);
+
+      const newStock = Math.max(0, parseInt(stockInput?.value) || 0);
+      const newPrice = Math.max(0, parseFloat(priceInput?.value) || 0);
+
+      if (isNaN(newStock) || isNaN(newPrice)) {
+        alert("Nilai stok atau harga tidak valid.");
+        return;
+      }
+
+      const button = document.querySelector(`button[onclick="saveItemField('${itemId}')"]`);
+      button.disabled = true;
+      button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
+
+      const { error } = await supabase
+        .from("auction_items")
+        .update({
+          stock: newStock,
+          fixed_price: newPrice
+        })
+        .eq("id", itemId);
+
+      if (error) {
+        alert("Gagal menyimpan: " + error.message);
+        button.disabled = false;
+        button.innerHTML = '<i class="fas fa-save"></i> Simpan';
+      } else {
+        alert("✅ Stok & harga berhasil diperbarui!");
+        await loadAuctionItemsForSale(); // Refresh tabel
+      }
+    }
+
+        // --- Bagian Baru: Search dan Dropdown Nama Game ---
+    const gameSearchInput = document.getElementById('game-search');
+    const gameDropdown = document.getElementById('game-dropdown');
+    const clearSearchBtn = document.getElementById('clear-search-btn');
+    let allUniqueGameNames = []; // Untuk menyimpan daftar nama game unik
+
+    // Ambil semua nama game unik saat halaman dimuat
+    async function loadUniqueGameNames() {
+      const { data, error } = await supabase
+        .from("auction_items")
+        .select("game_name")
+        .not("game_name", "is", null) // Hanya ambil yang tidak null
+        .order("game_name", { ascending: true });
+
+      if (error) {
+        console.error("Gagal mengambil nama game:", error.message);
+        return;
+      }
+
+      const uniqueNames = [...new Set(data.map(item => item.game_name).filter(name => name.trim() !== ""))];
+      allUniqueGameNames = uniqueNames;
+    }
+
+    // Tampilkan opsi ke dropdown
+    function populateDropdown(filter = '') {
+      gameDropdown.innerHTML = '';
+      const filteredNames = allUniqueGameNames.filter(name => name.toLowerCase().includes(filter.toLowerCase()));
+      if (filteredNames.length === 0) {
+        gameDropdown.style.display = 'none';
+        return;
+      }
+      filteredNames.forEach(name => {
+        const div = document.createElement('div');
+        div.className = 'dropdown-item';
+        div.textContent = name;
+        div.onclick = () => {
+          gameSearchInput.value = name;
+          gameDropdown.style.display = 'none';
+          // Panggil fungsi filter di sini jika sudah dibuat
+          filterTableByGameName(name);
+        };
+        gameDropdown.appendChild(div);
+      });
+      gameDropdown.style.display = 'block';
+    }
+
+    // Filter tabel berdasarkan nama game
+    function filterTableByGameName(gameName) {
+      const rows = document.querySelectorAll('#marketplace-table-body tr');
+      rows.forEach(row => {
+        const gameCell = row.cells[2]; // Kolom Nama Game (indeks ke-2)
+        if (!gameName || gameCell.textContent.toLowerCase().includes(gameName.toLowerCase())) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+    }
+
+    // Event listener untuk input pencarian
+    gameSearchInput.addEventListener('input', () => {
+      const query = gameSearchInput.value;
+      if (query.trim() === '') {
+        gameDropdown.style.display = 'none';
+        // Tampilkan semua baris jika kosong
+        document.querySelectorAll('#marketplace-table-body tr').forEach(row => row.style.display = '');
+      } else {
+        populateDropdown(query);
+      }
+    });
+
+    // Sembunyikan dropdown jika klik di luar elemen pencarian
+    document.addEventListener('click', (e) => {
+      if (!gameSearchInput.contains(e.target) && !gameDropdown.contains(e.target)) {
+        gameDropdown.style.display = 'none';
+      }
+    });
+
+    // Fungsi untuk membersihkan pencarian
+    clearSearchBtn.addEventListener('click', () => {
+      gameSearchInput.value = '';
+      gameDropdown.style.display = 'none';
+      document.querySelectorAll('#marketplace-table-body tr').forEach(row => row.style.display = '');
+    });
+
+    // Muat nama game saat DOM siap
+    await loadUniqueGameNames();
+    // --- Akhir Bagian Baru ---
+    
+
+    
+    // Export fungsi ke window
+    window.openImageModal = openImageModal;
+    window.closeModal = closeModal;
+    window.saveImageChange = saveImageChange;
+    // window.openGameItemModal = openGameItemModal; // Dihapus
+    // window.closeGameItemModal = closeGameItemModal; // Dihapus
+    // window.saveGameItemChange = saveGameItemChange; // Dihapus
+    window.openDeleteModal = openDeleteModal;
+    window.closeDeleteModal = closeDeleteModal;
+    window.confirmDelete = confirmDelete;
+    window.saveItemField = saveItemField;
+    window.enableEdit = enableEdit;
+  </script>
+</body>
+</html>
