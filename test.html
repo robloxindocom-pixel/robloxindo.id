@@ -335,7 +335,7 @@
         font-size: 12px;
       }
     }
-        /* Styling untuk dropdown item */
+
     .dropdown-item {
       padding: 10px;
       cursor: pointer;
@@ -345,59 +345,37 @@
     .dropdown-item:hover {
       background-color: #f1f8ff;
     }
-    
   </style>
 </head>
 <body>
   <div class="container">
     <header>
-
-      <div id="auth-section" style="text-align: center; margin-bottom: 20px;">
-  <button id="google-login-btn" style="
-    background: #4285F4;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 6px;
-    font-size: 14px;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-  ">
-    <i class="fab fa-google"></i> Login dengan Google
-  </button>
-  <p id="login-status" style="margin-top: 10px; color: #7f8c8d; font-size: 14px;"></p>
-</div>
+      <!-- Judul Utama -->
+      <h1><i class="fas fa-store"></i> Admin Marketplace</h1>
+      <p>Kelola stok, harga, dan informasi barang</p>
       
       <!-- Tombol Kembali -->
       <a href="admine-petote.html" class="back-btn">
         <i class="fas fa-arrow-left"></i> Kembali
       </a>
-
-      <!-- Judul Utama -->
-      <h1><i class="fas fa-store"></i> Admin Marketplace</h1>
-      <p>Kelola stok, harga, dan informasi barang</p>
     </header>
 
+    <!-- Info admin (ditampilkan sebagai placeholder) -->
     <div id="admin-info">
-      Admin: <span id="admin-email">Memuat...</span>
+      Admin: <span id="admin-email">[Mode Uji – Tidak Perlu Login]</span>
     </div>
 
-        <!-- Baris baru: Search dan Dropdown Game -->
+    <!-- Baris baru: Search dan Dropdown Game -->
     <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
       <label for="game-search">Cari Nama Game:</label>
       <div style="position: relative; flex: 1; max-width: 300px;">
         <input type="text" id="game-search" placeholder="Ketik untuk mencari game..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
         <div id="game-dropdown" class="dropdown-content" style="display: none; position: absolute; background: white; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); z-index: 99; max-height: 200px; overflow-y: auto; width: 100%;">
-          <!-- Isi dropdown akan diisi oleh JavaScript -->
+          <!-- Dropdown diisi oleh JS -->
         </div>
       </div>
       <button id="clear-search-btn" style="padding: 10px 15px; background: #95a5a6; color: white; border: none; border-radius: 6px; cursor: pointer;">Clear</button>
     </div>
-
-    
 
     <div class="table-container">
       <table>
@@ -405,8 +383,8 @@
           <tr>
             <th>Gambar</th>
             <th>Barang</th>
-            <th>Nama Game</th> <!-- Kolom Baru -->
-            <th>Nama Item</th> <!-- Kolom Baru -->
+            <th>Nama Game</th>
+            <th>Nama Item</th>
             <th>Stok</th>
             <th>Harga Saat Ini</th>
             <th>Edit Harga</th>
@@ -415,7 +393,7 @@
           </tr>
         </thead>
         <tbody id="marketplace-table-body">
-          <tr><td colspan="9" class="loading">Memuat data barang...</td></tr> <!-- Update colspan -->
+          <tr><td colspan="9" class="loading">Memuat data barang...</td></tr>
         </tbody>
       </table>
     </div>
@@ -452,169 +430,95 @@
     const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5yZXd1eWFtdHZveWNuem51cXF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI0MzYzMDMsImV4cCI6MjA2ODAxMjMwM30.oIJ29RUXCC9NHp3LSnqnNalJ80RGQHv_UW602izFtIs";
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-    const allowedAdminEmail = "balongemoy@gmail.com";
+    // ✅ Bypass login: langsung muat data tanpa cek user
+    let currentItemId = null;
+    let itemToDeleteId = null;
 
-    let currentItemId = null; // currentItemId hanya digunakan untuk imageModal sekarang
-    let itemToDeleteId = null; // Untuk menyimpan ID item yang akan dihapus
-
-document.addEventListener("DOMContentLoaded", async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  const emailSpan = document.getElementById("admin-email");
-  const authSection = document.getElementById("auth-section");
-  const loginBtn = document.getElementById('google-login-btn');
-  const loginStatus = document.getElementById('login-status');
-
-  if (user && user.email === allowedAdminEmail) {
-    // Admin valid → sembunyikan tombol login, tampilkan data
-    authSection.style.display = 'none';
-    emailSpan.textContent = user.email;
-    await loadAuctionItemsForSale();
-  } else {
-    // Belum login atau bukan admin
-    emailSpan.textContent = "Akses Ditolak";
-    authSection.style.display = 'block';
-    loginStatus.textContent = 'Silakan login sebagai admin untuk mengakses halaman ini.';
-    document.getElementById("marketplace-table-body").innerHTML = `
-      <tr><td colspan="9" class="empty-state">
-        <i class="fas fa-lock" style="font-size: 24px; margin-bottom: 10px;"></i><br>
-        Akses ditolak. Hanya admin yang sah.
-      </td></tr>
-    `;
-
-    // Pasang event listener untuk tombol login
-    loginBtn.addEventListener('click', signInWithGoogle);
-    return;
-  }
-
-  // Muat daftar game unik (ini hanya dijalankan jika admin valid)
-  await loadUniqueGameNames();
-});
-
-
-
-    // Fungsi login dengan Google
-async function signInWithGoogle() {
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: window.location.href // Redirect kembali ke halaman ini setelah login
-    }
-  });
-
-  if (error) {
-    console.error('Login error:', error.message);
-    document.getElementById('login-status').textContent = '❌ Gagal login: ' + error.message;
-  }
-}
-    
-async function loadAuctionItemsForSale() {
-  const { data, error } = await supabase
-    .from("auction_items")
-    .select("id, title, image_url, fixed_price, stock, admin_email, game_name, item_name") // Hapus is_active
-    .order("title", { ascending: true });
-
-  const tbody = document.getElementById("marketplace-table-body");
-
-  if (error) {
-    tbody.innerHTML = `
-      <tr><td colspan="9" class="empty-state"> <!-- Update colspan -->
-        ❌ Gagal memuat data: ${error.message}
-      </td></tr>
-    `;
-    console.error("Supabase error:", error);
-    return;
-  }
-
-  if (!data || data.length === 0) {
-    tbody.innerHTML = `
-      <tr><td colspan="9" class="empty-state"> <!-- Update colspan -->
-        🛍️ Tidak ada barang di marketplace.
-      </td></tr>
-    `;
-    return;
-  }
-
-  tbody.innerHTML = "";
-
-  data.forEach(item => {
-    const formattedPrice = new Intl.NumberFormat('id-ID').format(item.fixed_price || 0);
-    // Kita tidak lagi menggunakan is_active, jadi status selalu dianggap Aktif
-    const statusClass = 'status-active';
-    const statusText = 'Aktif';
-
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>
-        <img src="${item.image_url || 'https://via.placeholder.com/60?text=No+Image  '}" 
-             alt="${item.title}" class="item-image" 
-             data-id="${item.id}" onclick="openImageModal('${item.id}', this.src)">
-      </td>
-      <td>
-        <div class="item-info">
-          <div class="item-title" 
-               contenteditable="false" 
-               data-field="title" 
-               data-id="${item.id}"
-               onclick="enableEdit(this)">
-            ${item.title}
-          </div>
-          <!-- Kolom deskripsi dihapus -->
-        </div>
-      </td>
-      <!-- Kolom Nama Game Baru -->
-      <td>
-        <div class="item-game" 
-             contenteditable="false" 
-             data-field="game_name" 
-             data-id="${item.id}"
-             onclick="enableEdit(this)">
-          ${item.game_name || 'Belum diisi'}
-        </div>
-      </td>
-      <!-- Kolom Nama Item Baru -->
-      <td>
-        <div class="item-type" 
-             contenteditable="false" 
-             data-field="item_name" 
-             data-id="${item.id}"
-             onclick="enableEdit(this)">
-          ${item.item_name || 'Belum diisi'}
-        </div>
-      </td>
-      <td>
-        <input type="number" value="${item.stock || 0}" min="0" 
-               class="stock-input" data-id="${item.id}" data-field="stock">
-      </td>
-      <td>Rp ${formattedPrice}</td>
-      <td>
-        <input type="number" value="${item.fixed_price || 0}" min="0" 
-               class="price-input" data-id="${item.id}" data-field="fixed_price">
-      </td>
-      <td>
-        <span class="status-badge ${statusClass}">${statusText}</span>
-      </td>
-      <td>
-        <button class="action-btn" onclick="saveItemField('${item.id}')">
-          <i class="fas fa-save"></i> Simpan
-        </button>
-        <!-- TOMBOL EDIT GAME/ITEM DIHAPUS -->
-        <button class="action-btn action-btn-delete" onclick="openDeleteModal('${item.id}')"> <!-- Tombol Hapus -->
-          <i class="fas fa-trash"></i> Hapus
-        </button>
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
-
-  // Tambahkan event listener untuk edit judul, game_name, dan item_name
-  document.querySelectorAll('.item-title, .item-game, .item-type').forEach(el => {
-    el.addEventListener('blur', function () {
-      saveInlineEdit(this);
+    document.addEventListener("DOMContentLoaded", async () => {
+      // Langsung muat data dan daftar game
+      await loadAuctionItemsForSale();
+      await loadUniqueGameNames();
     });
-  });
-}
 
-    // Buka modal edit gambar
+    // === Fungsi CRUD tetap aktif ===
+    async function loadAuctionItemsForSale() {
+      const { data, error } = await supabase
+        .from("auction_items")
+        .select("id, title, image_url, fixed_price, stock, admin_email, game_name, item_name")
+        .order("title", { ascending: true });
+
+      const tbody = document.getElementById("marketplace-table-body");
+
+      if (error) {
+        tbody.innerHTML = `<tr><td colspan="9" class="empty-state">❌ Gagal memuat data: ${error.message}</td></tr>`;
+        console.error("Supabase error:", error);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="empty-state">🛍️ Tidak ada barang di marketplace.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = "";
+      data.forEach(item => {
+        const formattedPrice = new Intl.NumberFormat('id-ID').format(item.fixed_price || 0);
+        const statusClass = 'status-active';
+        const statusText = 'Aktif';
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>
+            <img src="${item.image_url || 'https://via.placeholder.com/60?text=No+Image'}" 
+                 alt="${item.title}" class="item-image" 
+                 data-id="${item.id}" onclick="openImageModal('${item.id}', this.src)">
+          </td>
+          <td>
+            <div class="item-info">
+              <div class="item-title" contenteditable="false" data-field="title" data-id="${item.id}" onclick="enableEdit(this)">
+                ${item.title}
+              </div>
+            </div>
+          </td>
+          <td>
+            <div class="item-game" contenteditable="false" data-field="game_name" data-id="${item.id}" onclick="enableEdit(this)">
+              ${item.game_name || 'Belum diisi'}
+            </div>
+          </td>
+          <td>
+            <div class="item-type" contenteditable="false" data-field="item_name" data-id="${item.id}" onclick="enableEdit(this)">
+              ${item.item_name || 'Belum diisi'}
+            </div>
+          </td>
+          <td>
+            <input type="number" value="${item.stock || 0}" min="0" class="stock-input" data-id="${item.id}" data-field="stock">
+          </td>
+          <td>Rp ${formattedPrice}</td>
+          <td>
+            <input type="number" value="${item.fixed_price || 0}" min="0" class="price-input" data-id="${item.id}" data-field="fixed_price">
+          </td>
+          <td>
+            <span class="status-badge ${statusClass}">${statusText}</span>
+          </td>
+          <td>
+            <button class="action-btn" onclick="saveItemField('${item.id}')">
+              <i class="fas fa-save"></i> Simpan
+            </button>
+            <button class="action-btn action-btn-delete" onclick="openDeleteModal('${item.id}')">
+              <i class="fas fa-trash"></i> Hapus
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Event listener untuk edit inline
+      document.querySelectorAll('.item-title, .item-game, .item-type').forEach(el => {
+        el.addEventListener('blur', function () { saveInlineEdit(this); });
+      });
+    }
+
+    // --- Fungsi modal & aksi ---
     function openImageModal(itemId, currentUrl) {
       currentItemId = itemId;
       document.getElementById('imageUrlInput').value = currentUrl;
@@ -635,7 +539,7 @@ async function loadAuctionItemsForSale() {
 
       const imgElement = document.querySelector(`img[data-id="${currentItemId}"]`);
       const oldUrl = imgElement.src;
-      imgElement.src = newUrl; // Update preview
+      imgElement.src = newUrl;
 
       const { error } = await supabase
         .from("auction_items")
@@ -644,15 +548,13 @@ async function loadAuctionItemsForSale() {
 
       if (error) {
         alert("Gagal menyimpan URL gambar: " + error.message);
-        imgElement.src = oldUrl; // Rollback
+        imgElement.src = oldUrl;
       } else {
         alert("✅ URL gambar berhasil diperbarui!");
       }
-
       closeModal();
     }
 
-    // Buka modal konfirmasi hapus
     function openDeleteModal(itemId) {
       itemToDeleteId = itemId;
       document.getElementById('deleteModal').style.display = 'flex';
@@ -663,7 +565,6 @@ async function loadAuctionItemsForSale() {
       itemToDeleteId = null;
     }
 
-    // Konfirmasi dan lakukan penghapusan
     async function confirmDelete() {
       if (!itemToDeleteId) {
         alert("ID item tidak valid.");
@@ -679,13 +580,11 @@ async function loadAuctionItemsForSale() {
         alert("Gagal menghapus item: " + error.message);
       } else {
         alert("✅ Item berhasil dihapus!");
-        await loadAuctionItemsForSale(); // Refresh tabel
+        await loadAuctionItemsForSale();
       }
       closeDeleteModal();
     }
 
-
-    // Aktifkan edit inline
     function enableEdit(element) {
       element.contentEditable = true;
       element.focus();
@@ -696,43 +595,31 @@ async function loadAuctionItemsForSale() {
       sel.addRange(range);
     }
 
-    // Simpan edit judul/deskripsi/game_name/item_name
     async function saveInlineEdit(element) {
       const itemId = element.dataset.id;
       const field = element.dataset.field;
       const value = element.textContent.trim();
 
-      // Jangan validasi game_name dan item_name kosong seperti title/desc
-if (field === 'title' && !value) {
-   alert('Judul tidak boleh kosong.');
-   element.textContent = 'Tidak ada judul';
-   return;
-}
+      if (field === 'title' && !value) {
+        alert('Judul tidak boleh kosong.');
+        element.textContent = 'Tidak ada judul';
+        return;
+      }
 
       const { error } = await supabase
         .from("auction_items")
-        .update({ [field]: value || null }) // Gunakan null jika kosong
+        .update({ [field]: value || null })
         .eq("id", itemId);
 
       if (error) {
         alert(`Gagal update ${field}: ${error.message}`);
-        // Jika gagal, kembalikan nilai sebelumnya
         element.textContent = element.dataset.originalValue || (field === 'title' ? 'Tidak ada judul' : 'Belum diisi');
       } else {
-        console.log(`${field} diperbarui untuk ID: ${itemId}`);
-        // Update dataset untuk nilai sebelumnya jika perlu
         element.dataset.originalValue = value;
       }
     }
 
-    // Simpan stok & harga
     async function saveItemField(itemId) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user || user.email !== allowedAdminEmail) {
-        alert("Akses ditolak.");
-        return;
-      }
-
       const stockInput = document.querySelector(`input[data-id="${itemId}"][data-field="stock"]`);
       const priceInput = document.querySelector(`input[data-id="${itemId}"][data-field="fixed_price"]`);
 
@@ -750,10 +637,7 @@ if (field === 'title' && !value) {
 
       const { error } = await supabase
         .from("auction_items")
-        .update({
-          stock: newStock,
-          fixed_price: newPrice
-        })
+        .update({ stock: newStock, fixed_price: newPrice })
         .eq("id", itemId);
 
       if (error) {
@@ -762,22 +646,21 @@ if (field === 'title' && !value) {
         button.innerHTML = '<i class="fas fa-save"></i> Simpan';
       } else {
         alert("✅ Stok & harga berhasil diperbarui!");
-        await loadAuctionItemsForSale(); // Refresh tabel
+        await loadAuctionItemsForSale();
       }
     }
 
-        // --- Bagian Baru: Search dan Dropdown Nama Game ---
+    // --- Fitur Search Nama Game ---
     const gameSearchInput = document.getElementById('game-search');
     const gameDropdown = document.getElementById('game-dropdown');
     const clearSearchBtn = document.getElementById('clear-search-btn');
-    let allUniqueGameNames = []; // Untuk menyimpan daftar nama game unik
+    let allUniqueGameNames = [];
 
-    // Ambil semua nama game unik saat halaman dimuat
     async function loadUniqueGameNames() {
       const { data, error } = await supabase
         .from("auction_items")
         .select("game_name")
-        .not("game_name", "is", null) // Hanya ambil yang tidak null
+        .not("game_name", "is", null)
         .order("game_name", { ascending: true });
 
       if (error) {
@@ -785,11 +668,9 @@ if (field === 'title' && !value) {
         return;
       }
 
-      const uniqueNames = [...new Set(data.map(item => item.game_name).filter(name => name.trim() !== ""))];
-      allUniqueGameNames = uniqueNames;
+      allUniqueGameNames = [...new Set(data.map(item => item.game_name).filter(name => name.trim() !== ""))];
     }
 
-    // Tampilkan opsi ke dropdown
     function populateDropdown(filter = '') {
       gameDropdown.innerHTML = '';
       const filteredNames = allUniqueGameNames.filter(name => name.toLowerCase().includes(filter.toLowerCase()));
@@ -804,7 +685,6 @@ if (field === 'title' && !value) {
         div.onclick = () => {
           gameSearchInput.value = name;
           gameDropdown.style.display = 'none';
-          // Panggil fungsi filter di sini jika sudah dibuat
           filterTableByGameName(name);
         };
         gameDropdown.appendChild(div);
@@ -812,11 +692,10 @@ if (field === 'title' && !value) {
       gameDropdown.style.display = 'block';
     }
 
-    // Filter tabel berdasarkan nama game
     function filterTableByGameName(gameName) {
       const rows = document.querySelectorAll('#marketplace-table-body tr');
       rows.forEach(row => {
-        const gameCell = row.cells[2]; // Kolom Nama Game (indeks ke-2)
+        const gameCell = row.cells[2];
         if (!gameName || gameCell.textContent.toLowerCase().includes(gameName.toLowerCase())) {
           row.style.display = '';
         } else {
@@ -825,45 +704,32 @@ if (field === 'title' && !value) {
       });
     }
 
-    // Event listener untuk input pencarian
     gameSearchInput.addEventListener('input', () => {
       const query = gameSearchInput.value;
       if (query.trim() === '') {
         gameDropdown.style.display = 'none';
-        // Tampilkan semua baris jika kosong
         document.querySelectorAll('#marketplace-table-body tr').forEach(row => row.style.display = '');
       } else {
         populateDropdown(query);
       }
     });
 
-    // Sembunyikan dropdown jika klik di luar elemen pencarian
     document.addEventListener('click', (e) => {
       if (!gameSearchInput.contains(e.target) && !gameDropdown.contains(e.target)) {
         gameDropdown.style.display = 'none';
       }
     });
 
-    // Fungsi untuk membersihkan pencarian
     clearSearchBtn.addEventListener('click', () => {
       gameSearchInput.value = '';
       gameDropdown.style.display = 'none';
       document.querySelectorAll('#marketplace-table-body tr').forEach(row => row.style.display = '');
     });
 
-    // Muat nama game saat DOM siap
-    await loadUniqueGameNames();
-    // --- Akhir Bagian Baru ---
-    
-
-    
-    // Export fungsi ke window
+    // Export ke window
     window.openImageModal = openImageModal;
     window.closeModal = closeModal;
     window.saveImageChange = saveImageChange;
-    // window.openGameItemModal = openGameItemModal; // Dihapus
-    // window.closeGameItemModal = closeGameItemModal; // Dihapus
-    // window.saveGameItemChange = saveGameItemChange; // Dihapus
     window.openDeleteModal = openDeleteModal;
     window.closeDeleteModal = closeDeleteModal;
     window.confirmDelete = confirmDelete;
