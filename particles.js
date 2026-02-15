@@ -1,241 +1,506 @@
-// Tunggu DOM sepenuhnya siap
-document.addEventListener('DOMContentLoaded', () => {
-  // Ambil elemen setelah DOM siap
-  const canvas = document.getElementById('particle-canvas');
-  const ctx = canvas.getContext('2d');
-  const textElement = document.getElementById('text-effect');
+/**
+ * Professional Particle Text Effect System
+ * Modular, scalable, and performance-optimized
+ */
 
-  // Set ukuran canvas
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
 
-  // Variabel
-  let particles = [];
-  let textParticles = [];
-  let formingText = false;
-  let textFormed = false;
-  let explosionDone = false;
+const CONFIG = {
+  canvas: {
+    id: 'particle-canvas',
+    bgColor: '#000000'
+  },
+  text: {
+    id: 'text-effect',
+    content: 'HELLO WORLD',
+    font: 'bold 70px Arial',
+    color: '#ffffff',
+    samplingGap: 6 // Pixel sampling density
+  },
+  particles: {
+    count: 500,
+    minSize: 1,
+    maxSize: 5,
+    hueRange: { min: 20, max: 40 }, // Orange to yellow
+    saturation: 100,
+    lightness: 65,
+    maxSpeed: 4,
+    formSpeed: 0.05,
+    explosionSpeed: { min: 3, max: 8 },
+    driftStrength: 0.2,
+    targetFPS: 60
+  },
+  mouse: {
+    radius: 150,
+    repelStrength: 0.06,
+    repelRange: 3
+  },
+  animation: {
+    formDelay: 1000, // ms before particles start forming text
+    formThreshold: 8, // Distance to consider "formed"
+    clickExplosionCount: 150
+  },
+  audio: {
+    explosion: 'https://assets.mixkit.co/sfx/preview/mixkit-whoosh-whoosh-3000.mp3',
+    click: 'https://assets.mixkit.co/sfx/preview/mixkit-small-impact-674.mp3',
+    preload: true
+  }
+};
 
-  // Mouse interaction
-  let mouse = {
-    x: undefined,
-    y: undefined,
-    radius: 150
-  };
+// ============================================================================
+// UTILITIES
+// ============================================================================
 
-  // 🔊 Suara ledakan (hanya sekali)
-  const explosionSound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-whoosh-whoosh-3000.mp3');
-  const clickSound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-small-impact-674.mp3');
+const Utils = {
+  /**
+   * Generate random number in range
+   */
+  random(min, max) {
+    return Math.random() * (max - min) + min;
+  },
 
-  // Pastikan URL tidak ada spasi ekstra
-  explosionSound.preload = 'auto';
-  clickSound.preload = 'auto';
+  /**
+   * Calculate distance between two points
+   */
+  distance(x1, y1, x2, y2) {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    return Math.sqrt(dx * dx + dy * dy);
+  },
 
-  function playExplosion() {
-    explosionSound.currentTime = 0;
-    explosionSound.play().catch(e => console.log("Suara ledakan diblokir:", e));
+  /**
+   * Clamp value between min and max
+   */
+  clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+  },
+
+  /**
+   * Generate HSL color
+   */
+  hslColor(hue, saturation, lightness) {
+    return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+  },
+
+  /**
+   * Random HSL color from config
+   */
+  randomParticleColor() {
+    const hue = this.random(
+      CONFIG.particles.hueRange.min,
+      CONFIG.particles.hueRange.max
+    );
+    return this.hslColor(hue, CONFIG.particles.saturation, CONFIG.particles.lightness);
+  }
+};
+
+// ============================================================================
+// AUDIO MANAGER
+// ============================================================================
+
+class AudioManager {
+  constructor() {
+    this.sounds = {};
+    this.initialized = false;
   }
 
-  function playClick() {
-    clickSound.currentTime = 0;
-    clickSound.play().catch(e => console.log("Suara klik diblokir:", e));
+  /**
+   * Initialize audio assets
+   */
+  init() {
+    if (this.initialized) return;
+
+    this.sounds.explosion = new Audio(CONFIG.audio.explosion);
+    this.sounds.click = new Audio(CONFIG.audio.click);
+
+    if (CONFIG.audio.preload) {
+      Object.values(this.sounds).forEach(sound => {
+        sound.preload = 'auto';
+      });
+    }
+
+    this.initialized = true;
   }
 
-  // Event: mouse move
-  window.addEventListener('mousemove', (e) => {
-    mouse.x = e.x;
-    mouse.y = e.y;
-  });
+  /**
+   * Play sound with error handling
+   */
+  play(soundName) {
+    if (!this.sounds[soundName]) return;
+    
+    this.sounds[soundName].currentTime = 0;
+    this.sounds[soundName].play().catch(err => {
+      console.warn(`Audio playback blocked: ${soundName}`, err);
+    });
+  }
+}
 
-  // Event: klik → ledakan kecil (opsional)
-  window.addEventListener('click', (e) => {
-    playClick();
-    for (let i = 0; i < 150; i++) {
-      const hue = Math.random() * 20 + 20;
-      const color = `hsl(${hue}, 100%, 65%)`;
-      const size = Math.random() * 5 + 1;
-      particles.push(new Particle(e.x, e.y, color, size));
-    }
-  });
+// ============================================================================
+// PARTICLE CLASS
+// ============================================================================
 
-  // Class Partikel
-  class Particle {
-    constructor(x, y, color = 'orange', size = 2) {
-      this.x = x;
-      this.y = y;
-      this.originX = x;
-      this.originY = y;
-      this.size = size;
-      this.color = color;
-      this.speedX = 0;
-      this.speedY = 0;
-    }
+class Particle {
+  constructor(x, y, targetX = null, targetY = null) {
+    this.x = x;
+    this.y = y;
+    this.targetX = targetX || x;
+    this.targetY = targetY || y;
+    this.speedX = 0;
+    this.speedY = 0;
+    this.size = Utils.random(CONFIG.particles.minSize, CONFIG.particles.maxSize);
+    this.color = Utils.randomParticleColor();
+    this.isActive = true;
+  }
 
-    draw() {
-      ctx.fillStyle = this.color;
-      ctx.fillRect(this.x, this.y, this.size, this.size);
-    }
+  /**
+   * Draw particle on canvas
+   */
+  draw(ctx) {
+    if (!this.isActive) return;
 
-    update(deltaTime) {
-      // Normalisasi ke 60 FPS
-      const dtFactor = deltaTime * 60;
+    ctx.fillStyle = this.color;
+    ctx.fillRect(this.x, this.y, this.size, this.size);
+  }
 
-      // 1. Berkumpul ke posisi teks
-      if (formingText && !textFormed) {
-        const dx = this.originX - this.x;
-        const dy = this.originY - this.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+  /**
+   * Update particle position based on current state
+   */
+  update(deltaTime, state, mouse, canvasWidth, canvasHeight) {
+    const dtFactor = deltaTime * CONFIG.particles.targetFPS;
 
-        if (dist > 1) {
-          this.x += dx * 0.05 * dtFactor;
-          this.y += dy * 0.05 * dtFactor;
-        }
-      }
-      // 2. Meledak: ledakan ke segala arah
-      else if (!explosionDone) {
-        if (this.speedX === 0 && this.speedY === 0) {
-          const angle = Math.random() * Math.PI * 2;
-          const speed = Math.random() * 8 + 3;
-          this.speedX = Math.cos(angle) * speed;
-          this.speedY = Math.sin(angle) * speed;
-        }
-        this.x += this.speedX * dtFactor;
-        this.y += this.speedY * dtFactor;
-      }
-      // 3. Setelah ledakan → interaksi + gerakan santai
-      else {
-        // Tarik ke mouse
-        if (mouse.x && mouse.y) {
-          const dx = mouse.x - this.x;
-          const dy = mouse.y - this.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-
-          if (distance < mouse.radius) {
-            const force = (mouse.radius - distance) / mouse.radius;
-            const strength = (1 - force) * 3;
-            this.speedX -= dx * force * 0.06 * strength * dtFactor;
-            this.speedY -= dy * force * 0.06 * strength * dtFactor;
-          }
-        }
-
-        // Gerakan acak halus
-        this.speedX += (Math.random() - 0.5) * 0.2 * dtFactor;
-        this.speedY += (Math.random() - 0.5) * 0.2 * dtFactor;
-
-        // Batasi kecepatan maksimal
-        const maxSpeed = 4;
-        if (this.speedX > maxSpeed) this.speedX = maxSpeed;
-        if (this.speedX < -maxSpeed) this.speedX = -maxSpeed;
-        if (this.speedY > maxSpeed) this.speedY = maxSpeed;
-        if (this.speedY < -maxSpeed) this.speedY = -maxSpeed;
-
-        this.x += this.speedX * dtFactor;
-        this.y += this.speedY * dtFactor;
-
-        // Loop dari sisi lain layar
-        if (this.x < 0) this.x = canvas.width;
-        if (this.x > canvas.width) this.x = 0;
-        if (this.y < 0) this.y = canvas.height;
-        if (this.y > canvas.height) this.y = 0;
-      }
+    switch (state) {
+      case 'forming':
+        this.updateForming(dtFactor);
+        break;
+      case 'exploding':
+        this.updateExploding(dtFactor);
+        break;
+      case 'interactive':
+        this.updateInteractive(dtFactor, mouse, canvasWidth, canvasHeight);
+        break;
     }
   }
 
-  // Buat partikel dari posisi teks
-  function createTextParticles() {
+  /**
+   * Move towards target position (forming text)
+   */
+  updateForming(dtFactor) {
+    const dx = this.targetX - this.x;
+    const dy = this.targetY - this.y;
+    const distance = Utils.distance(this.x, this.y, this.targetX, this.targetY);
+
+    if (distance > 1) {
+      this.x += dx * CONFIG.particles.formSpeed * dtFactor;
+      this.y += dy * CONFIG.particles.formSpeed * dtFactor;
+    }
+  }
+
+  /**
+   * Explode in random direction
+   */
+  updateExploding(dtFactor) {
+    // Initialize explosion velocity once
+    if (this.speedX === 0 && this.speedY === 0) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = Utils.random(
+        CONFIG.particles.explosionSpeed.min,
+        CONFIG.particles.explosionSpeed.max
+      );
+      this.speedX = Math.cos(angle) * speed;
+      this.speedY = Math.sin(angle) * speed;
+    }
+
+    this.x += this.speedX * dtFactor;
+    this.y += this.speedY * dtFactor;
+  }
+
+  /**
+   * Interactive movement with mouse repulsion and drift
+   */
+  updateInteractive(dtFactor, mouse, canvasWidth, canvasHeight) {
+    // Mouse repulsion
+    if (mouse.x !== undefined && mouse.y !== undefined) {
+      const distance = Utils.distance(this.x, this.y, mouse.x, mouse.y);
+
+      if (distance < CONFIG.mouse.radius) {
+        const force = (CONFIG.mouse.radius - distance) / CONFIG.mouse.radius;
+        const strength = (1 - force) * CONFIG.mouse.repelRange;
+        const dx = mouse.x - this.x;
+        const dy = mouse.y - this.y;
+
+        this.speedX -= dx * force * CONFIG.mouse.repelStrength * strength * dtFactor;
+        this.speedY -= dy * force * CONFIG.mouse.repelStrength * strength * dtFactor;
+      }
+    }
+
+    // Random drift
+    this.speedX += (Math.random() - 0.5) * CONFIG.particles.driftStrength * dtFactor;
+    this.speedY += (Math.random() - 0.5) * CONFIG.particles.driftStrength * dtFactor;
+
+    // Clamp speed
+    this.speedX = Utils.clamp(this.speedX, -CONFIG.particles.maxSpeed, CONFIG.particles.maxSpeed);
+    this.speedY = Utils.clamp(this.speedY, -CONFIG.particles.maxSpeed, CONFIG.particles.maxSpeed);
+
+    // Update position
+    this.x += this.speedX * dtFactor;
+    this.y += this.speedY * dtFactor;
+
+    // Screen wrapping
+    if (this.x < 0) this.x = canvasWidth;
+    if (this.x > canvasWidth) this.x = 0;
+    if (this.y < 0) this.y = canvasHeight;
+    if (this.y > canvasHeight) this.y = 0;
+  }
+
+  /**
+   * Check if particle is close to target
+   */
+  isNearTarget() {
+    const distance = Utils.distance(this.x, this.y, this.targetX, this.targetY);
+    return distance < CONFIG.animation.formThreshold;
+  }
+}
+
+// ============================================================================
+// PARTICLE SYSTEM MANAGER
+// ============================================================================
+
+class ParticleSystem {
+  constructor(canvas, textElement) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.textElement = textElement;
+    
+    // State
+    this.particles = [];
+    this.textTargets = [];
+    this.state = 'idle'; // idle, forming, exploding, interactive
+    
+    // Mouse tracking
+    this.mouse = {
+      x: undefined,
+      y: undefined
+    };
+
+    // Timing
+    this.lastTime = 0;
+
+    // Audio
+    this.audio = new AudioManager();
+    this.audio.init();
+
+    this.init();
+  }
+
+  /**
+   * Initialize the particle system
+   */
+  init() {
+    this.resizeCanvas();
+    this.extractTextTargets();
+    this.createParticles();
+    this.setupEventListeners();
+    
+    // Start forming after delay
+    setTimeout(() => {
+      this.state = 'forming';
+      this.assignTargetsToParticles();
+    }, CONFIG.animation.formDelay);
+  }
+
+  /**
+   * Resize canvas to window size
+   */
+  resizeCanvas() {
+    this.canvas.width = window.innerWidth;
+    this.canvas.height = window.innerHeight;
+  }
+
+  /**
+   * Extract pixel positions from text
+   */
+  extractTextTargets() {
     const tempCanvas = document.createElement('canvas');
     const tempCtx = tempCanvas.getContext('2d');
-    tempCanvas.width = canvas.width;
-    tempCanvas.height = canvas.height;
+    tempCanvas.width = this.canvas.width;
+    tempCanvas.height = this.canvas.height;
 
-    tempCtx.font = 'bold 70px Arial';
-    tempCtx.fillStyle = 'white';
-    const text = textElement.textContent;
+    tempCtx.font = CONFIG.text.font;
+    tempCtx.fillStyle = CONFIG.text.color;
+    
+    const text = this.textElement.textContent;
     const metrics = tempCtx.measureText(text);
-    const x = (canvas.width - metrics.width) / 2;
-    const y = canvas.height / 2;
+    const x = (this.canvas.width - metrics.width) / 2;
+    const y = this.canvas.height / 2;
 
     tempCtx.fillText(text, x, y);
 
-    const pixels = tempCtx.getImageData(0, 0, canvas.width, canvas.height).data;
+    const imageData = tempCtx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+    const pixels = imageData.data;
 
-    for (let y = 0; y < canvas.height; y += 6) {
-      for (let x = 0; x < canvas.width; x += 6) {
-        const i = (y * canvas.width + x) * 4;
-        if (pixels[i + 3] > 0) {
-          textParticles.push({ x, y });
+    // Sample pixels to create targets
+    for (let y = 0; y < this.canvas.height; y += CONFIG.text.samplingGap) {
+      for (let x = 0; x < this.canvas.width; x += CONFIG.text.samplingGap) {
+        const index = (y * this.canvas.width + x) * 4;
+        const alpha = pixels[index + 3];
+
+        if (alpha > 0) {
+          this.textTargets.push({ x, y });
         }
       }
     }
 
-    // Acak urutan partikel
-    textParticles.sort(() => Math.random() - 0.5);
+    // Randomize target order for organic formation
+    this.textTargets.sort(() => Math.random() - 0.5);
+  }
 
-    // Buat 500 partikel awal dari luar layar
-    for (let i = 0; i < 500; i++) {
-      const x = Math.random() * canvas.width * 3 - canvas.width;
-      const y = Math.random() * canvas.height * 3 - canvas.height;
-      const hue = Math.random() * 20 + 20; // Warna oranye ke kuning
-      const size = Math.random() * 5 + 1;
-      particles.push(new Particle(x, y, `hsl(${hue}, 100%, 65%)`, size));
+  /**
+   * Create initial particles scattered around screen
+   */
+  createParticles() {
+    for (let i = 0; i < CONFIG.particles.count; i++) {
+      const x = Utils.random(-this.canvas.width, this.canvas.width * 2);
+      const y = Utils.random(-this.canvas.height, this.canvas.height * 2);
+      this.particles.push(new Particle(x, y));
     }
   }
 
-  // Animasi utama dengan deltaTime
-  let lastTime = 0;
+  /**
+   * Assign text target positions to particles
+   */
+  assignTargetsToParticles() {
+    const maxAssign = Math.min(this.particles.length, this.textTargets.length);
+    
+    for (let i = 0; i < maxAssign; i++) {
+      this.particles[i].targetX = this.textTargets[i].x;
+      this.particles[i].targetY = this.textTargets[i].y;
+    }
+  }
 
-  function animate(currentTime) {
-    const deltaTime = currentTime - lastTime;
-    lastTime = currentTime;
+  /**
+   * Add explosion particles at position
+   */
+  addExplosion(x, y, count = CONFIG.animation.clickExplosionCount) {
+    for (let i = 0; i < count; i++) {
+      const particle = new Particle(x, y, x, y);
+      this.particles.push(particle);
+    }
+    this.audio.play('click');
+  }
 
-    // Konversi ke detik, normalisasi ke 60 FPS
-    const dt = deltaTime / 1000;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    particles.forEach(p => {
-      p.update(dt);
-      p.draw();
+  /**
+   * Setup event listeners
+   */
+  setupEventListeners() {
+    // Mouse movement
+    window.addEventListener('mousemove', (e) => {
+      this.mouse.x = e.clientX;
+      this.mouse.y = e.clientY;
     });
 
-    // Cek apakah semua partikel sudah dekat posisi teks
-    if (formingText && !textFormed) {
-      const allClose = particles.every(p => {
-        const dx = p.originX - p.x;
-        const dy = p.originY - p.y;
-        return Math.sqrt(dx * dx + dy * dy) < 8;
-      });
-
-      if (allClose && !explosionDone) {
-        textFormed = true;
-        textElement.style.opacity = 1;
-        playExplosion(); // 🔊 Suara ledakan
-        explosionDone = true; // Mulai fase interaksi
+    // Click explosion
+    window.addEventListener('click', (e) => {
+      if (this.state === 'interactive') {
+        this.addExplosion(e.clientX, e.clientY);
       }
-    }
+    });
 
-    requestAnimationFrame(animate);
+    // Resize handling
+    window.addEventListener('resize', () => {
+      this.resizeCanvas();
+      this.extractTextTargets();
+      this.assignTargetsToParticles();
+    });
   }
 
-  // Resize canvas saat ukuran layar berubah
-  window.addEventListener('resize', () => {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    // Optional: reset textParticles jika perlu, tapi tidak wajib
-  });
+  /**
+   * Check if all particles have formed text
+   */
+  checkTextFormed() {
+    if (this.state !== 'forming') return false;
 
-  // Inisialisasi
-  createTextParticles();
+    const allFormed = this.particles.every(p => p.isNearTarget());
 
-  // Mulai membentuk teks setelah 1 detik
-  setTimeout(() => {
-    formingText = true;
-    for (let i = 0; i < Math.min(particles.length, textParticles.length); i++) {
-      particles[i].originX = textParticles[i].x;
-      particles[i].originY = textParticles[i].y;
+    if (allFormed) {
+      this.state = 'exploding';
+      this.textElement.style.opacity = 1;
+      this.audio.play('explosion');
+      
+      // Transition to interactive after brief explosion
+      setTimeout(() => {
+        this.state = 'interactive';
+      }, 800);
+
+      return true;
     }
-  }, 1000);
 
-  // Jalankan animasi
-  requestAnimationFrame(animate);
+    return false;
+  }
+
+  /**
+   * Update all particles
+   */
+  update(deltaTime) {
+    this.particles.forEach(particle => {
+      particle.update(
+        deltaTime,
+        this.state,
+        this.mouse,
+        this.canvas.width,
+        this.canvas.height
+      );
+    });
+
+    this.checkTextFormed();
+  }
+
+  /**
+   * Draw all particles
+   */
+  draw() {
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.particles.forEach(particle => particle.draw(this.ctx));
+  }
+
+  /**
+   * Animation loop
+   */
+  animate(currentTime) {
+    const deltaTime = (currentTime - this.lastTime) / 1000;
+    this.lastTime = currentTime;
+
+    this.update(deltaTime);
+    this.draw();
+
+    requestAnimationFrame((time) => this.animate(time));
+  }
+
+  /**
+   * Start the animation
+   */
+  start() {
+    requestAnimationFrame((time) => {
+      this.lastTime = time;
+      this.animate(time);
+    });
+  }
+}
+
+// ============================================================================
+// INITIALIZATION
+// ============================================================================
+
+document.addEventListener('DOMContentLoaded', () => {
+  const canvas = document.getElementById(CONFIG.canvas.id);
+  const textElement = document.getElementById(CONFIG.text.id);
+
+  if (!canvas || !textElement) {
+    console.error('Required elements not found. Please check HTML structure.');
+    return;
+  }
+
+  const particleSystem = new ParticleSystem(canvas, textElement);
+  particleSystem.start();
 });
